@@ -114,13 +114,17 @@ fun AcademicSection(s: AcademicSummary) {
         }
         item {
             BaseItemContainer {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                ) {
-                    Stat("班级排名", s.classRank, Modifier.weight(1f))
-                    Stat("专业排名", s.majorRank, Modifier.weight(1f))
-                    Stat("课程通过率", s.passRate, Modifier.weight(1f))
-                    Stat("学分加权平均分", s.weightedAverageScore, Modifier.weight(1f))
+                // 两行两列：窄屏下 4 列会把「学分加权平均分」挤成两行
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Stat("班级排名", s.classRank, Modifier.weight(1f))
+                        Stat("专业排名", s.majorRank, Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth()) {
+                        Stat("课程通过率", s.passRate, Modifier.weight(1f))
+                        Stat("学分加权平均分", s.weightedAverageScore, Modifier.weight(1f))
+                    }
                 }
             }
         }

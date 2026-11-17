@@ -98,32 +98,42 @@ scrollBehavior = scrollBehavior,
             item {
                 OverviewCard(report = state.report, onRefresh = onRefresh)
             }
+            // 课程成绩：与首页/公告/设置同构的行式分组（不再用 ElevatedCard）
             item {
-                Text(
-                    "课程成绩",
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
-            item {
-                ElevatedCard(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = CardDefaults.elevatedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    ),
-                ) {
-                    Column {
-                        state.report.records.forEachIndexed { i, r ->
-                            CourseTile(r)
-                            if (i < state.report.records.lastIndex) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(start = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant,
-                                )
-                            }
+                SegmentedColumn(title = "课程成绩 · ${state.report.records.size} 门") {
+                    state.report.records.forEach { r ->
+                        item {
+                            BaseWidget(
+                                icon = "school",
+                                title = r.courseName,
+                                titleStyle = MaterialTheme.typography.titleMedium,
+                                description = details(r),
+                                isError = r.failed,
+                                trailingContent = {
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            r.score.ifEmpty { "--" },
+                                            style = MaterialTheme.typography.titleLargeEmphasized,
+                                            color = if (r.failed) {
+                                                MaterialTheme.colorScheme.error
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            },
+                                        )
+                                        if (r.passStatus.isNotEmpty()) {
+                                            Text(
+                                                r.passStatus,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = if (r.failed) {
+                                                    MaterialTheme.colorScheme.error
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                            )
+                                        }
+                                    }
+                                },
+                            )
                         }
                     }
                 }
