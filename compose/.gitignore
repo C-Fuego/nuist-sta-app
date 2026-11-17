@@ -1,0 +1,8 @@
+# Gradle 构建产物（仓库 AGENTS.md 禁入库）
+build/
+.gradle/
+local.properties
+*.apk
+*.aab
+.kotlin/
+_preview_out/

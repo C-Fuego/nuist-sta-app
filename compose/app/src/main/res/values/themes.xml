@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 影子入口占位主题；真正的 MD3E 主题在 core:theme 的 Compose 层 -->
+    <style name="Theme.NuistStaCompose" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
