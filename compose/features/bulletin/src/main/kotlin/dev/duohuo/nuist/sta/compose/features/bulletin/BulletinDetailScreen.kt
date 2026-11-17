@@ -65,31 +65,49 @@ scrollBehavior = scrollBehavior,
             item {
                 Text(
                     detail.bulletin.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmallEmphasized,
                     color = scheme.onSurface,
-                    lineHeight = 32.sp,
+                    lineHeight = 34.sp,
                 )
             }
             item {
-                Text(detail.meta, style = MaterialTheme.typography.labelMedium,
-                    color = scheme.onSurfaceVariant)
+                Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text(
+                        detail.bulletin.publisher,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = scheme.primary,
+                    )
+                    Text(
+                        "  ·  ",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = scheme.onSurfaceVariant,
+                    )
+                    Text(
+                        detail.bulletin.publishedAt,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = scheme.onSurfaceVariant,
+                    )
+                }
+            }
+            item {
+                androidx.compose.material3.HorizontalDivider(
+                    color = scheme.outlineVariant.copy(alpha = 0.5f),
+                )
             }
             items(detail.blocks.size) { i ->
                 when (val block = detail.blocks[i]) {
                     is DetailBlock.Heading -> Text(
                         block.text,
-                        style = if (block.level <= 2) MaterialTheme.typography.titleMedium
-                        else MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        style = if (block.level <= 2) MaterialTheme.typography.titleMediumEmphasized
+                        else MaterialTheme.typography.titleSmallEmphasized,
                         color = scheme.onSurface,
-                        modifier = Modifier.padding(top = 6.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                     is DetailBlock.Paragraph -> Text(
                         block.text,
                         style = MaterialTheme.typography.bodyLarge,
                         color = scheme.onSurface,
-                        lineHeight = 26.sp,
+                        lineHeight = 28.sp,
                     )
                     is DetailBlock.Bullets -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         block.items.forEach { item ->

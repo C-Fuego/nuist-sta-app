@@ -309,7 +309,9 @@ fun ThemeSettingsScreen(
             }
 
             // --- Group 4: 预测性返回（无 MiuiX 档）---
+            // 原文 InstallerX 用 SDK >= UPSIDE_DOWN_CAKE(34) 门控
             item {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 SegmentedColumn(title = "预测性返回") {
                     item {
                         BaseWidget(
@@ -329,6 +331,7 @@ fun ThemeSettingsScreen(
                             )
                         }
                     }
+                }
                 }
             }
         }
