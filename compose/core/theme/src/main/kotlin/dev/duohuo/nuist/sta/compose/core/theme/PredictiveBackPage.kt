@@ -41,8 +41,11 @@ fun PredictiveBackPage(
 ) {
     val scope = rememberCoroutineScope()
     val progress = remember { Animatable(0f) }
-    // 手势完成方向的符号：由最近一次 back 事件的滑动方向决定
-    var exitSign by remember { mutableFloatStateOf(1f) }
+    // 手势起始边：左缘=True（BackEvent.swipeEdge == 0）
+    var swipeFromLeft by remember { androidx.compose.runtime.mutableStateOf(true) }
+    // 提交阶段状态（原文 settle.phase == Commit 的等价物）
+    var releasing by remember { androidx.compose.runtime.mutableStateOf(false) }
+    var releaseProgress by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
 
     val density = androidx.compose.ui.platform.LocalDensity.current
     val widthPx = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
@@ -52,16 +55,31 @@ fun PredictiveBackPage(
         PredictiveBackHandler(enabled = true) { events ->
             try {
                 events.collect { backEvent ->
-                    // 记录滑动起点方向（左滑 → 内容向右退出）
-                    exitSign = 1f
-                    progress.snapTo(backEvent.progress.coerceIn(0f, 1f))
+                    // 记录滑动侧（BackEvent.swipeEdge: 0=左缘, 1=右缘）
+                    swipeFromLeft = backEvent.swipeEdge == 0
+                    releaseProgress = backEvent.progress.coerceIn(0f, 1f)
+                    progress.snapTo(releaseProgress)
                 }
-                // 手势完成：补到 1 再返回
-                progress.animateTo(1f, tween(durationMillis = 150))
+                releasing = true
+                // 手势完成：按原文提交动效补到 1 再返回
+                progress.animateTo(
+                    1f,
+                    when (animation) {
+                        PredictiveBackAnimation.Scale -> ScaleCommitSpec
+                        else -> AospCommitSpec
+                    },
+                )
                 onBack()
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // 手势取消：回弹
-                progress.animateTo(0f, tween(durationMillis = 200))
+                releasing = false
+                // 手势取消：按原文回弹弹簧
+                progress.animateTo(
+                    0f,
+                    when (animation) {
+                        PredictiveBackAnimation.Scale -> ScaleCancelSpec
+                        else -> AospCancelSpec
+                    },
+                )
             }
         }
     } else {
@@ -70,38 +88,54 @@ fun PredictiveBackPage(
     }
 
     val p = progress.value
-    val signed = when (direction) {
-        PredictiveBackExitDirection.FOLLOW_GESTURE -> exitSign * (if (isRtl) -1f else 1f)
-        PredictiveBackExitDirection.ALWAYS_RIGHT -> 1f
-        PredictiveBackExitDirection.ALWAYS_LEFT -> -1f
-    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .graphicsLayer {
-                when (animation) {
-                    PredictiveBackAnimation.AOSP -> {
-                        translationX = signed * p * widthPx * 0.30f
-                        scaleX = 1f - 0.08f * p
-                        scaleY = 1f - 0.08f * p
-                        alpha = 1f - 0.35f * p
-                    }
-                    PredictiveBackAnimation.Scale -> {
-                        scaleX = 1f - 0.15f * p
-                        scaleY = 1f - 0.15f * p
-                        alpha = 1f - p
-                    }
-                    PredictiveBackAnimation.Classic -> {
-                        translationX = signed * p * widthPx * 0.12f
-                        scaleX = 1f - 0.10f * p
-                        scaleY = 1f - 0.10f * p
-                        alpha = 1f - p
-                    }
-                    PredictiveBackAnimation.None -> {
-                        alpha = 1f
-                    }
+                val w = size.width
+                val h = size.height
+                val sign = when (direction) {
+                    PredictiveBackExitDirection.FOLLOW_GESTURE ->
+                        if (swipeFromLeft) 1f else -1f
+                    PredictiveBackExitDirection.ALWAYS_RIGHT -> 1f
+                    PredictiveBackExitDirection.ALWAYS_LEFT -> -1f
                 }
+                val t = when (animation) {
+                    PredictiveBackAnimation.AOSP -> aospBackTransform(
+                        progress = p,
+                        releasing = releasing,
+                        releaseProgress = releaseProgress,
+                        widthPx = w,
+                        driftPx = AospDrift.toPx(),
+                        edgeMarginPx = AospEdgeMargin.toPx(),
+                        sign = sign,
+                    )
+                    PredictiveBackAnimation.Scale -> scaleBackTransform(
+                        progress = p,
+                        releasing = releasing,
+                        releaseProgress = releaseProgress,
+                        widthPx = w,
+                        sign = sign,
+                        fromLeftEdge = swipeFromLeft,
+                    )
+                    PredictiveBackAnimation.Classic -> classicBackTransform(
+                        progress = p,
+                        widthPx = w,
+                        driftPx = AospDrift.toPx(),
+                        sign = sign,
+                    )
+                    PredictiveBackAnimation.None -> BackTransform(1f, 0f, 0f, 1f)
+                }
+                scaleX = t.scale
+                scaleY = t.scale
+                translationX = t.translationX
+                translationY = t.translationY
+                alpha = t.alpha
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(
+                    pivotFractionX = t.pivotFractionX,
+                    pivotFractionY = t.pivotFractionY,
+                )
             }
             // 退场时轻微加圆角，更接近 AOSP 的窗口退场观感
             .drawWithContent {

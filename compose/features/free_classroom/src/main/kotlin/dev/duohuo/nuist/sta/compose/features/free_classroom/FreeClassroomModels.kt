@@ -46,6 +46,32 @@ data class ClassroomDay(
     val zones: List<String> get() = rooms.map { it.zone }.distinct().sorted()
 }
 
+/** 真实日历日期（本周起 14 天可选）。 */
+data class ClassDate(
+    val date: java.time.LocalDate,
+    val label: String,
+    val weekday: String,
+    val week: Int,
+    val isToday: Boolean,
+)
+
+/** 学期起始（第 1 周周一），用于把真实日期换算成教学周。 */
+val TermStart: java.time.LocalDate = java.time.LocalDate.of(2026, 8, 31)
+
+/** 从真实时钟生成未来 [days] 天的日期列表。 */
+fun upcomingDates(days: Int = 14, today: java.time.LocalDate = java.time.LocalDate.now()): List<ClassDate> =
+    (0 until days).map { offset ->
+        val date = today.plusDays(offset.toLong())
+        val week = (((date.toEpochDay() - TermStart.toEpochDay()) / 7) + 1).toInt()
+        ClassDate(
+            date = date,
+            label = "${date.monthValue}月${date.dayOfMonth}日",
+            weekday = "周" + "一二三四五六日"[date.dayOfWeek.value - 1],
+            week = week,
+            isToday = offset == 0,
+        )
+    }
+
 /** Mock 数据源：UI 阶段先用它把界面撑起来。 */
 object FreeClassroomMock {
     val buildings = listOf(

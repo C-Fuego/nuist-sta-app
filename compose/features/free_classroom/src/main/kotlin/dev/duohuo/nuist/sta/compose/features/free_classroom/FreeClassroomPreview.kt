@@ -18,6 +18,8 @@ private fun PreviewContent() {
         onToggleGroup = {},
         onFloor = {},
         onZone = {},
+        onDate = {},
+        onMinSeats = {},
     )
 }
 

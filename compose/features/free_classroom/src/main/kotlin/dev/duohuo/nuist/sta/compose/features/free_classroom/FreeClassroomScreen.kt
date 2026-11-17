@@ -35,6 +35,7 @@ import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Apartment
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Chair
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
@@ -77,6 +78,8 @@ fun FreeClassroomScreen(vm: FreeClassroomViewModel = viewModel()) {
         onToggleGroup = vm::toggleGroup,
         onFloor = vm::setFloor,
         onZone = vm::setZone,
+        onDate = vm::selectDate,
+        onMinSeats = vm::setMinSeats,
     )
 }
 
@@ -89,6 +92,8 @@ fun FreeClassroomContent(
     onToggleGroup: (Int) -> Unit,
     onFloor: (Int?) -> Unit,
     onZone: (String?) -> Unit,
+    onDate: (java.time.LocalDate) -> Unit,
+    onMinSeats: (Int) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
@@ -113,7 +118,14 @@ scrollBehavior = scrollBehavior,
         },
     ) { inner ->
         Column(modifier = Modifier.fillMaxSize().padding(inner)) {
-            FilterCard(state, onSelectBuilding, onFloor, onZone)
+            FilterCard(
+                state = state,
+                onSelectBuilding = onSelectBuilding,
+                onFloor = onFloor,
+                onZone = onZone,
+                onDate = onDate,
+                onMinSeats = onMinSeats,
+            )
 
             val day = state.day
             if (day == null) {
@@ -164,10 +176,14 @@ private fun FilterCard(
     onSelectBuilding: (Building) -> Unit,
     onFloor: (Int?) -> Unit,
     onZone: (String?) -> Unit,
+    onDate: (java.time.LocalDate) -> Unit,
+    onMinSeats: (Int) -> Unit,
 ) {
     var showBuildingDialog by remember { mutableStateOf(false) }
     var showZoneDialog by remember { mutableStateOf(false) }
     var showFloorDialog by remember { mutableStateOf(false) }
+    var showDateDialog by remember { mutableStateOf(false) }
+    var showSeatsDialog by remember { mutableStateOf(false) }
     val day = state.day
 
     val buildingSubtitle = when {
@@ -209,6 +225,17 @@ private fun FilterCard(
                 icon = Icons.Filled.CalendarToday,
                 title = day?.dateLabel ?: "今天",
                 description = day?.let { "${it.weekdayName} · 第${it.week}周" } ?: "同步后显示",
+                trailingContent = { FilterChevron() },
+                onClick = { showDateDialog = true },
+            )
+        }
+        item {
+            BaseWidget(
+                icon = Icons.Filled.Chair,
+                title = if (state.minSeats <= 0) "不限座位数" else "≥ ${state.minSeats} 座",
+                description = "座位数",
+                trailingContent = { FilterChevron() },
+                onClick = { showSeatsDialog = true },
             )
         }
     }
@@ -236,6 +263,35 @@ private fun FilterCard(
             onSelect = { index ->
                 showZoneDialog = false
                 onZone(if (index == 0) null else zones.getOrNull(index - 1))
+            },
+        )
+    }
+    if (showDateDialog) {
+        val dates = upcomingDates(14)
+        val current = dates.indexOfFirst { it.date == state.date }.coerceAtLeast(0)
+        SingleChoiceDialog(
+            title = "查询日期",
+            items = dates.map { d ->
+                (if (d.isToday) "今天 · " else "") + "${d.label} ${d.weekday} · 第${d.week}周"
+            },
+            selectedIndex = current,
+            onDismiss = { showDateDialog = false },
+            onSelect = { index ->
+                showDateDialog = false
+                dates.getOrNull(index)?.let { onDate(it.date) }
+            },
+        )
+    }
+    if (showSeatsDialog) {
+        val options = listOf(0, 30, 60, 90)
+        SingleChoiceDialog(
+            title = "座位数",
+            items = options.map { if (it == 0) "不限" else "≥ $it 座" },
+            selectedIndex = options.indexOf(state.minSeats).coerceAtLeast(0),
+            onDismiss = { showSeatsDialog = false },
+            onSelect = { index ->
+                showSeatsDialog = false
+                options.getOrNull(index)?.let(onMinSeats)
             },
         )
     }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 data class FreeClassroomUiState(
     val buildings: List<Building> = FreeClassroomMock.buildings,
     val building: Building = FreeClassroomMock.buildings.first(),
+    val date: java.time.LocalDate = java.time.LocalDate.now(),
     val day: ClassroomDay? = null,
     val loading: Boolean = false,
     val selectedGroups: Set<Int> = emptySet(),
@@ -47,13 +48,22 @@ class FreeClassroomViewModel : ViewModel() {
         load(_state.value.building)
     }
 
-    private fun load(building: Building) {
+    private fun load(building: Building, date: java.time.LocalDate = _state.value.date) {
         _state.update { it.copy(loading = true) }
-        val day = FreeClassroomMock.day(building)
+        // mock 的教室占用仍按固定一天生成；日期/星期/周次用真实日历覆盖
+        val info = upcomingDates(1, date).first()
+        val day = FreeClassroomMock.day(building).copy(
+            dateLabel = info.label,
+            weekdayName = info.weekday,
+            week = info.week,
+        )
         _state.update {
-            it.copy(building = building, day = day, loading = false)
+            it.copy(building = building, date = date, day = day, loading = false)
         }
     }
+
+    /** 切换查询日期（真实日历）。 */
+    fun selectDate(date: java.time.LocalDate) = load(_state.value.building, date)
 
     fun selectBuilding(building: Building) = load(building)
 
@@ -67,7 +77,7 @@ class FreeClassroomViewModel : ViewModel() {
     }
 
     fun setFloor(floor: Int?) = _state.update { it.copy(floor = floor) }
+    fun setMinSeats(seats: Int) = _state.update { it.copy(minSeats = seats) }
     fun setZone(zone: String?) = _state.update { it.copy(zone = zone) }
     fun setType(type: String?) = _state.update { it.copy(type = type) }
-    fun setMinSeats(seats: Int) = _state.update { it.copy(minSeats = seats) }
 }
