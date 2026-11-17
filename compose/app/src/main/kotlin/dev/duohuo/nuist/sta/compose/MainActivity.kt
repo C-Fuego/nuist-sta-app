@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -77,6 +76,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -216,6 +216,15 @@ class MainActivity : ComponentActivity() {
                     },
                     label = "app-shell",
                 ) { opened ->
+                    // 用 SaveableStateHolder 按页面 key 保存滚动位置：
+                    // 二级页往返、主页 Tab 切换后都回到原位置
+                    val saveableStateHolder = rememberSaveableStateHolder()
+                    val pageKey = when (opened) {
+                        null -> "main"
+                        is OpenTarget.App -> "app:" + opened.entry.id
+                        OpenTarget.ThemeSettings -> "theme"
+                    }
+                    saveableStateHolder.SaveableStateProvider(pageKey) {
                     if (opened != null) {
                         // 全屏页面：预测性返回（遵循设置的动画档位）+ 大屏限宽。
                         dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
@@ -277,6 +286,7 @@ class MainActivity : ComponentActivity() {
                             onOpen = { openedTarget = OpenTarget.App(it) },
                             onOpenThemeSettings = { openedTarget = OpenTarget.ThemeSettings },
                         )
+                    }
                     }
                 }
             }
@@ -720,6 +730,10 @@ scrollBehavior = scrollBehavior,
 @Composable
 private fun BulletinTab(onBack: () -> Unit) {
     var opened by remember { mutableStateOf<Bulletin?>(null) }
+    // 系统返回优先处理三级页：详情 → 列表 → 退出小程序
+    androidx.activity.compose.BackHandler(enabled = true) {
+        if (opened != null) opened = null else onBack()
+    }
     val current = opened
     if (current == null) {
         BulletinListScreen(onOpen = { opened = it })
