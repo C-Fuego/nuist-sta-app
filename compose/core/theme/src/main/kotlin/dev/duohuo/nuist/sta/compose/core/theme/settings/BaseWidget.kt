@@ -291,6 +291,7 @@ fun BaseWidget(
          * which incorrectly exposes the item as disabled and changes its visual state.
          */
         ListItem(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = itemModifier
                 .clip(baseShape)
                 .then(

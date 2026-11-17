@@ -164,7 +164,13 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        placeholder = { Text("搜索公告标题、发布单位或主题") },
+        placeholder = {
+            Text(
+                "搜索公告标题 / 单位 / 主题",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         leadingIcon = { SymbolIcon("search", contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {

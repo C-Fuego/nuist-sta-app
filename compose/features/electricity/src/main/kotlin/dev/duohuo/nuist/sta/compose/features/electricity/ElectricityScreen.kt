@@ -95,7 +95,7 @@ scrollBehavior = scrollBehavior,
                 .fillMaxSize()
                 .padding(inner)
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+                .padding(top = 12.dp, bottom = 24.dp),
         ) {
             // 组 1：当前余额（数字指标行 + 更换宿舍行，统一 InstallerX 卡型）
             dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn(title = "宿舍电费") {
@@ -164,7 +164,7 @@ scrollBehavior = scrollBehavior,
             if (state.pickerOpen) {
                 Text(
                     "（宿舍选择面板：区域 / 楼栋 / 房间级联，UI 优先阶段占位）",
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
                 )

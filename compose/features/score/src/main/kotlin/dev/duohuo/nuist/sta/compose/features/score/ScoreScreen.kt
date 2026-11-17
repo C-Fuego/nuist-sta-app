@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.duohuo.nuist.sta.compose.core.theme.settings.BaseWidget
 import dev.duohuo.nuist.sta.compose.core.theme.settings.MiniAppBackButton
+import dev.duohuo.nuist.sta.compose.core.theme.settings.BaseItemContainer
 import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 import dev.duohuo.nuist.sta.compose.core.theme.settings.SingleChoiceDialog
 
@@ -183,29 +184,22 @@ private fun TermSelector(
 private fun OverviewCard(report: ScoreReport, onRefresh: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val summary = report.summary
-    ElevatedCard(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.elevatedCardColors(containerColor = scheme.surfaceContainerLow),
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SymbolIcon("analytics", contentDescription = null,
-                    tint = scheme.primary, modifier = Modifier.size(20.dp), fontSize = 20.sp)
-                Spacer(Modifier.width(8.dp))
-                Text("成绩概览", style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                    SymbolIcon("refresh", contentDescription = "刷新", tint = scheme.primary)
-                }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row {
+    SegmentedColumn(title = "成绩概览") {
+        item {
+            BaseItemContainer {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Row(Modifier.fillMaxWidth()) {
                 Metric("课程", "${summary.total} 门", Modifier.weight(1f))
                 Metric("平均分", summary.averageScore?.let { String.format("%.1f", it) } ?: "--", Modifier.weight(1f))
                 Metric("通过", "${summary.passed} 门", Modifier.weight(1f))
                 Metric("学分", formatCredit(summary.credits), Modifier.weight(1f))
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
+                    SymbolIcon("refresh", contentDescription = "刷新", tint = scheme.primary)
+                }
+            }
+        }
             }
         }
     }

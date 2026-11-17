@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -201,6 +202,12 @@ class MainActivity : ComponentActivity() {
                 useAmoled = useAmoled,
             ) {
                 var openedTarget by remember { mutableStateOf<OpenTarget?>(null) }
+                // 首页首次加载态（仅应用启动出现一次，切页返回不重播）
+                var homeLoading by remember { mutableStateOf(true) }
+                LaunchedEffect(Unit) {
+                    kotlinx.coroutines.delay(700)
+                    homeLoading = false
+                }
                 AnimatedContent(
                     targetState = openedTarget,
                     transitionSpec = {
@@ -270,6 +277,7 @@ class MainActivity : ComponentActivity() {
                             pbAnim = pbAnim,
                             pbDir = pbDir,
                             bottomBarFloating = bottomBarFloating,
+                            homeLoading = homeLoading,
                             onOpen = { openedTarget = OpenTarget.App(it) },
                             onOpenThemeSettings = { openedTarget = OpenTarget.ThemeSettings },
                         )
@@ -306,6 +314,7 @@ private fun AppShell(
     pbAnim: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation,
     pbDir: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection,
     bottomBarFloating: Boolean,
+    homeLoading: Boolean,
     onOpen: (AppEntry) -> Unit,
     onOpenThemeSettings: () -> Unit,
 ) {
@@ -360,7 +369,7 @@ private fun AppShell(
                     }
                 }
                 ContentMaxWidth(Modifier.weight(1f)) {
-                    TabPager(pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings)
+                    TabPager(pagerState, homeLoading, onOpen, pbAnim, pbDir, onOpenThemeSettings)
                 }
             }
         } else if (bottomBarFloating) {
@@ -401,7 +410,7 @@ private fun AppShell(
                 },
             ) { inner ->
                 TabPager(
-                    pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings,
+                    pagerState, homeLoading, onOpen, pbAnim, pbDir, onOpenThemeSettings,
                     outerPadding = inner,
                 )
             }
@@ -426,7 +435,7 @@ private fun AppShell(
                     },
                 ) { inner ->
                     Box(Modifier.fillMaxSize().padding(inner)) {
-                        TabPager(pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings)
+                        TabPager(pagerState, homeLoading, onOpen, pbAnim, pbDir, onOpenThemeSettings)
                     }
                 }
             }
@@ -439,6 +448,7 @@ private data class TabDest(val label: String, val symbol: String)
 @Composable
 private fun TabPager(
     pagerState: PagerState,
+    homeLoading: Boolean,
     onOpen: (AppEntry) -> Unit,
     pbAnim: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation,
     pbDir: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection,
@@ -453,7 +463,11 @@ private fun TabPager(
         beyondViewportPageCount = 2,
     ) { page ->
         when (page) {
-            0 -> HomeTab(onOpen = onOpen, outerPadding = outerPadding)
+            0 -> HomeTab(
+                onOpen = onOpen,
+                outerPadding = outerPadding,
+                homeLoading = homeLoading,
+            )
             1 -> StudyTab(
                 onOpen = { id -> appEntries.find { it.id == id }?.let { onOpen(it) } },
                 outerPadding = outerPadding,
@@ -489,9 +503,13 @@ private fun ContentMaxWidth(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun HomeTab(onOpen: (AppEntry) -> Unit, outerPadding: PaddingValues = PaddingValues(0.dp)) {
+private fun HomeTab(
+    onOpen: (AppEntry) -> Unit,
+    outerPadding: PaddingValues = PaddingValues(0.dp),
+    homeLoading: Boolean = false,
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -508,22 +526,20 @@ scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
-        // 首次进入/刷新时的骨架屏（数据层接入后换成真实 loading）
-        var loading by rememberSaveable { androidx.compose.runtime.mutableStateOf(true) }
-        androidx.compose.runtime.LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(500)
-            loading = false
-        }
-        if (loading) {
-            androidx.compose.foundation.lazy.LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(inner),
-                contentPadding = PaddingValues(
-                    top = 12.dp,
-                    bottom = maxOf(24.dp, outerPadding.calculateBottomPadding()),
-                ),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(4) { HomeCardSkeleton() }
+        // 加载态由外层持有（只在应用启动时出现一次，来回切页不重播）
+        if (homeLoading) {
+            Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    androidx.compose.material3.LoadingIndicator(
+                        modifier = Modifier.size(56.dp),
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "正在加载校园数据…",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             return@Scaffold
         }
