@@ -23,7 +23,6 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.materialIconsExtended)
     implementation(libs.materialKolor)
     implementation("androidx.activity:activity-compose:1.9.3")
 }

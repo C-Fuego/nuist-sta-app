@@ -8,7 +8,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
@@ -23,7 +22,7 @@ fun RadioButtonWidget(
     modifier: Modifier = Modifier,
     description: String? = null,
     descriptionStyle: TextStyle = MaterialTheme.typography.bodyMedium,
-    icon: ImageVector? = null,
+    icon: String? = null,
     iconPlaceholder: Boolean = true,
     selected: Boolean = false,
     enabled: Boolean = true,

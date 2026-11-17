@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.timetable
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,10 +37,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.automirrored.filled.NavigateNext
-import androidx.compose.material.icons.automirrored.filled.NavigateBefore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,7 +112,7 @@ scrollBehavior = scrollBehavior,
         SegmentedColumn {
             item {
                 BaseWidget(
-                    icon = Icons.Filled.CalendarMonth,
+                    icon = "calendar_month",
                     title = "第 $week 周",
                     description = TimetableMock.TERM_LABEL +
                         " · 共 ${TimetableMock.TOTAL_WEEKS} 周" +
@@ -126,8 +123,7 @@ scrollBehavior = scrollBehavior,
                                 onClick = { if (week > 1) week -= 1 },
                                 enabled = week > 1,
                             ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.NavigateBefore,
+                                SymbolIcon("chevron_backward",
                                     contentDescription = "上一周",
                                 )
                             }
@@ -135,8 +131,7 @@ scrollBehavior = scrollBehavior,
                                 onClick = { if (week < TimetableMock.TOTAL_WEEKS) week += 1 },
                                 enabled = week < TimetableMock.TOTAL_WEEKS,
                             ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.NavigateNext,
+                                SymbolIcon("chevron_forward",
                                     contentDescription = "下一周",
                                 )
                             }

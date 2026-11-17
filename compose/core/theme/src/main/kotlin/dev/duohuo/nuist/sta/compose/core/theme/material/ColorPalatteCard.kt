@@ -20,10 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -171,9 +168,8 @@ private fun FullSwatchContent(scheme: ColorScheme, isSelected: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
+                    dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
+                        name = "check",
                         tint = scheme.inversePrimary,
                         modifier = Modifier.size(16.dp),
                     )
@@ -207,9 +203,8 @@ private fun FallbackSwatchContent(baseColor: Color, isSelected: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
+                    dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
+                        name = "check",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp),
                     )

@@ -1,16 +1,22 @@
-package dev.duohuo.nuist.sta.compose.ui
+package dev.duohuo.nuist.sta.compose.core.theme.ui
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import dev.duohuo.nuist.sta.compose.R
+import dev.duohuo.nuist.sta.compose.core.theme.R
 
 /**
  * Material Symbols Rounded 可变字体（FILL/GRAD/opsz/wght 四轴）。
@@ -38,9 +44,54 @@ private val SymbolsOutlined = symbolsFont(0f)
  * 因此改为直接渲染码位而不是 ligature。
  */
 private val symbolCodepoints = mapOf(
+    "account_balance" to "\uE84F",
+    "analytics" to "\uEF3E",
+    "apartment" to "\uEA40",
+    "arrow_back" to "\uE5C4",
+    "badge" to "\uEA67",
+    "bolt" to "\uEA0B",
+    "bug_report" to "\uE868",
+    "calendar_month" to "\uEBCC",
+    "calendar_today" to "\uE935",
+    "campaign" to "\uEF49",
+    "chair" to "\uEFED",
+    "check" to "\uE5CA",
+    "chevron_backward" to "\uF46B",
+    "chevron_forward" to "\uF46A",
+    "chevron_right" to "\uE409",
+    "close" to "\uE14C",
+    "cloud_off" to "\uE2C1",
+    "contrast" to "\uEB37",
+    "dark_mode" to "\uE51C",
+    "description" to "\uE873",
+    "directions_bus" to "\uE530",
+    "event" to "\uE24F",
+    "expand_less" to "\uE5CE",
+    "expand_more" to "\uE5CF",
+    "grid_view" to "\uE9B0",
     "home" to "\uE88A",
-    "school" to "\uE80C",
+    "inbox" to "\uE156",
+    "info" to "\uE88E",
+    "invert_colors" to "\uE891",
+    "layers" to "\uE53B",
+    "lightbulb" to "\uE0F0",
+    "link" to "\uE157",
+    "map" to "\uE55B",
+    "meeting_room" to "\uEB4F",
+    "menu" to "\uE5D2",
+    "menu_open" to "\uE9BD",
+    "my_location" to "\uE1B3",
+    "palette" to "\uE3B7",
     "person" to "\uE7FD",
+    "place" to "\uE0C8",
+    "refresh" to "\uE5D5",
+    "school" to "\uE80C",
+    "score" to "\uE269",
+    "search" to "\uE8B6",
+    "search_off" to "\uEA76",
+    "topic" to "\uF1C4",
+    "tune" to "\uE429",
+    "work" to "\uE8F9",
 )
 
 /**
@@ -50,17 +101,22 @@ private val symbolCodepoints = mapOf(
 @Composable
 fun SymbolIcon(
     name: String,
-    filled: Boolean = false,
+    filled: Boolean = true,
     modifier: Modifier = Modifier,
     tint: Color = Color.Unspecified,
     fontSize: TextUnit = 24.sp,
+    contentDescription: String? = null,
 ) {
     Text(
         symbolCodepoints[name] ?: name,
         fontFamily = if (filled) SymbolsFilled else SymbolsOutlined,
         fontSize = fontSize,
         color = tint,
-        modifier = modifier,
+        modifier = if (contentDescription != null) {
+            modifier.semantics { this.contentDescription = contentDescription }
+        } else {
+            modifier
+        },
         maxLines = 1,
     )
 }

@@ -33,7 +33,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -55,7 +54,7 @@ val LocalSegmentedItemShape = compositionLocalOf<Shape> { RoundedCornerShape(Cor
  * and custom trailing content.
  *
  * @param modifier The [Modifier] to be applied to the widget.
- * @param icon The [ImageVector] to be displayed at the start of the widget.
+ * @param icon Material Symbols 图标名（如 "home"），显示在部件左侧。
  * @param iconColor The color applied to the [icon].
  * @param iconPlaceholder If true, maintains a consistent leading space even when [icon] is null.
  * @param title The primary headline text of the widget.
@@ -79,7 +78,7 @@ val LocalSegmentedItemShape = compositionLocalOf<Shape> { RoundedCornerShape(Cor
 @Composable
 fun BaseWidget(
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
+    icon: String? = null,
     iconColor: Color? = null,
     iconPlaceholder: Boolean = true,
     title: String,
@@ -197,9 +196,8 @@ fun BaseWidget(
                     contentAlignment = Alignment.Center,
                 ) {
                     if (icon != null) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
+                        dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
+                            name = icon,
                             tint = resolvedIconColor,
                         )
                     } else {

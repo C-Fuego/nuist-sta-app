@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.free_classroom
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,16 +33,6 @@ import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Apartment
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Chair
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -105,7 +96,7 @@ fun FreeClassroomContent(
                 navigationIcon = { MiniAppBackButton() },
                 actions = {
                     IconButton(onClick = onRefresh) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                        SymbolIcon("refresh", contentDescription = "刷新")
                     }
                 },
                                 colors = TopAppBarDefaults.topAppBarColors(
@@ -132,7 +123,7 @@ scrollBehavior = scrollBehavior,
                 EmptyState(
                     title = "选择教学楼后查询",
                     subtitle = "按教学楼与日期查看空闲教室",
-                    icon = Icons.Filled.MeetingRoom,
+                    icon = "meeting_room",
                 )
             } else {
                 Spacer(Modifier.height(4.dp))
@@ -147,7 +138,7 @@ scrollBehavior = scrollBehavior,
                     EmptyState(
                         title = "没有符合条件的空教室",
                         subtitle = "试试放宽楼层、区域或时段筛选",
-                        icon = Icons.Filled.SearchOff,
+                        icon = "search_off",
                     )
                 } else {
                     LazyColumn(
@@ -195,7 +186,7 @@ private fun FilterCard(
     SegmentedColumn(title = "查询条件") {
         item {
             BaseWidget(
-                icon = Icons.Filled.Apartment,
+                icon = "apartment",
                 title = state.building.name,
                 description = buildingSubtitle,
                 trailingContent = { FilterChevron(loading = state.loading) },
@@ -204,7 +195,7 @@ private fun FilterCard(
         }
         item {
             BaseWidget(
-                icon = Icons.Filled.GridView,
+                icon = "grid_view",
                 title = state.zone?.let { "$it 区" } ?: "全部区域",
                 description = "区域",
                 trailingContent = { FilterChevron() },
@@ -213,7 +204,7 @@ private fun FilterCard(
         }
         item {
             BaseWidget(
-                icon = Icons.Filled.Layers,
+                icon = "layers",
                 title = state.floor?.let { if (it == 0) "其他楼层" else "$it 层" } ?: "全部楼层",
                 description = "楼层",
                 trailingContent = { FilterChevron() },
@@ -222,7 +213,7 @@ private fun FilterCard(
         }
         item {
             BaseWidget(
-                icon = Icons.Filled.CalendarToday,
+                icon = "calendar_today",
                 title = day?.dateLabel ?: "今天",
                 description = day?.let { "${it.weekdayName} · 第${it.week}周" } ?: "同步后显示",
                 trailingContent = { FilterChevron() },
@@ -231,7 +222,7 @@ private fun FilterCard(
         }
         item {
             BaseWidget(
-                icon = Icons.Filled.Chair,
+                icon = "chair",
                 title = if (state.minSeats <= 0) "不限座位数" else "≥ ${state.minSeats} 座",
                 description = "座位数",
                 trailingContent = { FilterChevron() },
@@ -315,8 +306,7 @@ private fun FilterChevron(loading: Boolean = false) {
     if (loading) {
         CircularWavyProgressIndicator(modifier = Modifier.size(18.dp))
     } else {
-        Icon(
-            Icons.Filled.ChevronRight,
+        SymbolIcon("chevron_right",
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

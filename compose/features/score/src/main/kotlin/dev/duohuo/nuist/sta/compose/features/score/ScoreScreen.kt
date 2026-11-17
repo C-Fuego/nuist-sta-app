@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.score
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,11 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -145,12 +141,11 @@ private fun TermSelector(
     SegmentedColumn(title = "学期") {
         item {
             BaseWidget(
-                icon = Icons.Filled.CalendarMonth,
+                icon = "calendar_month",
                 title = selectedTerm,
                 description = "学期成绩单",
                 trailingContent = {
-                    Icon(
-                        Icons.Filled.ChevronRight,
+                    SymbolIcon("chevron_right",
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -184,14 +179,14 @@ private fun OverviewCard(report: ScoreReport, onRefresh: () -> Unit) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Assessment, contentDescription = null,
+                SymbolIcon("analytics", contentDescription = null,
                     tint = scheme.primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("成绩概览", style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold, color = scheme.onSurface)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Filled.Refresh, contentDescription = "刷新", tint = scheme.primary)
+                    SymbolIcon("refresh", contentDescription = "刷新", tint = scheme.primary)
                 }
             }
             Spacer(Modifier.height(10.dp))

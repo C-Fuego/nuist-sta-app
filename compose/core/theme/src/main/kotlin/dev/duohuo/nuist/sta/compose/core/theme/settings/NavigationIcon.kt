@@ -1,9 +1,8 @@
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -12,14 +11,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ExpressiveBackButton(
     modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
+    icon: String = "arrow_back",
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     contentDescription: String = "返回",
@@ -34,7 +32,7 @@ fun ExpressiveBackButton(
             contentColor = contentColor,
         ),
     ) {
-        Icon(imageVector = icon, contentDescription = contentDescription)
+        SymbolIcon(name = icon, contentDescription = contentDescription)
     }
 }
 

@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.bulletin
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Topic
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -113,12 +108,11 @@ scrollBehavior = scrollBehavior,
                 SegmentedColumn(title = "主题") {
                     item {
                         BaseWidget(
-                            icon = Icons.Filled.Topic,
+                            icon = "topic",
                             title = topic,
                             description = "按主题筛选公告",
                             trailingContent = {
-                                Icon(
-                                    Icons.Filled.ChevronRight,
+                                SymbolIcon("chevron_right",
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -166,11 +160,11 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
         placeholder = { Text("搜索公告标题、发布单位或主题") },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+        leadingIcon = { SymbolIcon("search", contentDescription = null) },
         trailingIcon = {
             if (query.isNotEmpty()) {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Close, contentDescription = "清除")
+                    SymbolIcon("close", contentDescription = "清除")
                 }
             }
         },
@@ -205,8 +199,7 @@ private fun BulletinTile(b: Bulletin, modifier: Modifier = Modifier, onClick: ()
                     color = scheme.onSurface,
                 )
                 Spacer(Modifier.width(8.dp))
-                Icon(
-                    Icons.Filled.ChevronRight,
+                SymbolIcon("chevron_right",
                     contentDescription = null,
                     tint = scheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
@@ -220,8 +213,7 @@ private fun BulletinTile(b: Bulletin, modifier: Modifier = Modifier, onClick: ()
             }
             Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.AccountBalance,
+                SymbolIcon("account_balance",
                     contentDescription = null,
                     tint = scheme.onSurfaceVariant,
                     modifier = Modifier.size(13.dp),

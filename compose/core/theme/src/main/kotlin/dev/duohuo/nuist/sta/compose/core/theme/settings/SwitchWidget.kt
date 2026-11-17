@@ -2,17 +2,14 @@
 // Copyright (C) 2023-2026 iamr0s, InstallerX Revived contributors
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -26,7 +23,7 @@ import androidx.compose.ui.state.ToggleableState
  * A setting widget with a [Switch] trailing content.
  *
  * @param modifier The [Modifier] to be applied to the widget.
- * @param icon The [ImageVector] to be displayed at the start of the widget.
+ * @param icon Material Symbols 图标名（如 "contrast"）。
  * @param title The primary text displayed in the widget.
  * @param description Optional supporting text displayed below the title.
  * @param enabled Whether the widget is enabled and interactive.
@@ -39,7 +36,7 @@ import androidx.compose.ui.state.ToggleableState
 @Composable
 fun SwitchWidget(
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
+    icon: String? = null,
     iconPlaceholder: Boolean = true,
     title: String,
     description: String? = null,
@@ -107,9 +104,8 @@ fun SwitchWidget(
                 uncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             ),
             thumbContent = {
-                Icon(
-                    imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
-                    contentDescription = null,
+                SymbolIcon(
+                    name = if (checked) "check" else "close",
                     modifier = Modifier.size(SwitchDefaults.IconSize),
                 )
             },

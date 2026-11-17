@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.study
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -36,52 +35,48 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 
 /** 学生身份 + 学期进度组。对应 Flutter `StudentInfoCard`。 */
 @Composable
-fun StudentInfoSection(info: StudentInfo) {
+fun StudentInfoSection(info: StudentInfo, onSemesterClick: (() -> Unit)? = null) {
     SegmentedColumn(title = "学生信息") {
         item {
             BaseWidget(
-                icon = Icons.Filled.Person,
+                icon = "person",
                 title = info.name,
                 description = "${info.studentId} · ${info.orgLine}",
             )
         }
+        // 学期切换：标准 BaseWidget 行（图标 + 学期 + 周次 + 右箭头），
+        // 与 InstallerX 设置页其他行一致，避免把整块进度条当按钮
         item {
-            BaseItemContainer {
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            info.semester,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            "第 ${info.week} / ${info.totalWeeks} 周",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+            BaseWidget(
+                icon = "calendar_month",
+                title = info.semester,
+                description = "教学周 · 第 ${info.week} / ${info.totalWeeks} 周",
+                onClick = onSemesterClick,
+                trailingContent = {
+                    if (onSemesterClick != null) {
+                        SymbolIcon(
+                            name = "chevron_right",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
                         )
                     }
-                    Spacer(Modifier.height(10.dp))
-                    LinearWavyProgressIndicator(
-                        progress = { info.week.toFloat() / info.totalWeeks },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    )
-                }
+                },
+            )
+        }
+        item {
+            BaseItemContainer {
+                LinearWavyProgressIndicator(
+                    progress = { info.week.toFloat() / info.totalWeeks },
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                )
             }
         }
     }
 }
+
 
 /** 学业进度组。对应 Flutter `AcademicSummaryCard`。 */
 @Composable

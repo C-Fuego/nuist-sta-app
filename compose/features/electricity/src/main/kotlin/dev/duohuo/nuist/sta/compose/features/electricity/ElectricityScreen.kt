@@ -1,7 +1,7 @@
 package dev.duohuo.nuist.sta.compose.features.electricity
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.Canvas
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,12 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
@@ -107,7 +101,7 @@ scrollBehavior = scrollBehavior,
             dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn {
                 this.item { _ ->
                     dev.duohuo.nuist.sta.compose.core.theme.settings.BaseWidget(
-                        icon = Icons.Filled.Home,
+                        icon = "home",
                         title = if (state.room == null) "绑定宿舍" else "更换宿舍",
                         description = "从区域、楼栋、房间列表中选择",
                         onClick = onTogglePicker,
@@ -172,8 +166,7 @@ private fun StatusHeader(state: ElectricityUiState) {
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Filled.Bolt,
+                SymbolIcon("bolt",
                     contentDescription = null,
                     tint = when {
                         state.isOverdue -> scheme.onErrorContainer
@@ -213,7 +206,7 @@ private fun StatusHeader(state: ElectricityUiState) {
                 }
             }
             IconButton(onClick = {}) {
-                Icon(Icons.Filled.Refresh, contentDescription = "刷新", tint = scheme.primary)
+                SymbolIcon("refresh", contentDescription = "刷新", tint = scheme.primary)
             }
         }
     }
@@ -226,13 +219,13 @@ private fun ActionRow(label: String, hint: String, expanded: Boolean, onTap: () 
         modifier = Modifier.fillMaxWidth().height(56.dp).clickable(onClick = onTap).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(Icons.Outlined.Home, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+        SymbolIcon("home", contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = scheme.onSurface)
             Text(hint, fontSize = 11.sp, color = scheme.onSurfaceVariant)
         }
-        Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ChevronRight, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
+        SymbolIcon(if (expanded) "expand_less" else "chevron_right", contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
     }
 }
 

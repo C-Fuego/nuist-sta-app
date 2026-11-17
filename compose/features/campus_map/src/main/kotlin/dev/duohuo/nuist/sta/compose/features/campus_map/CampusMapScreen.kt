@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.campus_map
 
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,12 +16,6 @@ import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsBus
-import androidx.compose.material.icons.filled.Layers
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Place
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -82,7 +77,7 @@ scrollBehavior = scrollBehavior,
                 // 搜索行（真实搜索待地图接入后启用）
                 item {
                     BaseWidget(
-                        icon = Icons.Filled.Search,
+                        icon = "search",
                         title = "搜索地点、楼宇",
                         description = "教学楼、宿舍、服务点",
                     )
@@ -102,8 +97,7 @@ scrollBehavior = scrollBehavior,
                                         .background(MaterialTheme.colorScheme.primaryContainer),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(
-                                        Icons.Filled.Place,
+                                    SymbolIcon("place",
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.size(32.dp),
@@ -129,13 +123,13 @@ scrollBehavior = scrollBehavior,
                                 modifier = Modifier.align(Alignment.BottomCenter),
                             ) {
                                 IconButton(onClick = {}) {
-                                    Icon(Icons.Filled.Layers, contentDescription = "图层")
+                                    SymbolIcon("layers", contentDescription = "图层")
                                 }
                                 IconButton(onClick = {}) {
-                                    Icon(Icons.Filled.MyLocation, contentDescription = "定位")
+                                    SymbolIcon("my_location", contentDescription = "定位")
                                 }
                                 IconButton(onClick = {}) {
-                                    Icon(Icons.Filled.DirectionsBus, contentDescription = "小公交")
+                                    SymbolIcon("directions_bus", contentDescription = "小公交")
                                 }
                             }
                         }

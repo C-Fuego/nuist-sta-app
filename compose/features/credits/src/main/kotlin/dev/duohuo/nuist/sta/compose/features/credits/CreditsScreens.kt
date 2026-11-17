@@ -17,10 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -80,7 +75,7 @@ scrollBehavior = scrollBehavior,
                 SegmentedColumn(title = "总览") {
                     item {
                         BaseWidget(
-                            icon = Icons.Filled.Lightbulb,
+                            icon = "lightbulb",
                             title = "${credit.total.ifEmpty { "--" }} 分",
                             description = listOf(
                                 "已认定 ${credit.items.size} 项",
@@ -131,7 +126,7 @@ scrollBehavior = scrollBehavior,
                 SegmentedColumn(title = "总览") {
                     item {
                         BaseWidget(
-                            icon = Icons.Filled.Work,
+                            icon = "work",
                             title = "${r.total.ifEmpty { "--" }} 分",
                             description = listOf(r.confirmed, "劳动教育积分总分")
                                 .filter { it.isNotEmpty() }.joinToString(" · "),

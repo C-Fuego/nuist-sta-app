@@ -27,15 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.outlined.Contrast
-import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.filled.VerticalAlignBottom
-import androidx.compose.material.icons.outlined.InvertColors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -169,7 +160,7 @@ fun ThemeSettingsScreen(
                 SegmentedColumn(title = "Google Material 3") {
                     item {
                         BaseWidget(
-                            icon = Icons.Default.DarkMode,
+                            icon = "dark_mode",
                             title = "主题模式",
                             description = listOf("跟随系统主题", "浅色", "深色")[darkModeIndex],
                             onClick = { showThemeModeDialog = true },
@@ -177,7 +168,7 @@ fun ThemeSettingsScreen(
                     }
                     item {
                         BaseWidget(
-                            icon = Icons.Filled.Tune,
+                            icon = "tune",
                             title = "调色板样式",
                             description = paletteStyle.displayName,
                             onClick = { showPaletteDialog = true },
@@ -188,7 +179,7 @@ fun ThemeSettingsScreen(
                         val availableSpecs = paletteStyle.supportedSpecs
                         val activeSpec = paletteStyle.effectiveSpec(colorSpec)
                         dev.duohuo.nuist.sta.compose.core.theme.settings.DropDownMenuWidget(
-                            icon = Icons.Outlined.Contrast,
+                            icon = "contrast",
                             title = "颜色规格",
                             description = if (availableSpecs.size == 1) {
                                 if (activeSpec == ThemeColorSpec.SPEC_2026) "仅 2026" else "仅 2021"
@@ -205,7 +196,7 @@ fun ThemeSettingsScreen(
                     }
                     item {
                         SwitchWidget(
-                            icon = Icons.Outlined.InvertColors,
+                            icon = "invert_colors",
                             title = "动态颜色",
                             description = "基于壁纸的主题颜色",
                             checked = dynamicColor,
@@ -214,7 +205,7 @@ fun ThemeSettingsScreen(
                     }
                     item {
                         SwitchWidget(
-                            icon = Icons.Outlined.DarkMode,
+                            icon = "dark_mode",
                             title = "纯黑背景",
                             description = "深色主题下使用纯黑背景（AMOLED）",
                             checked = useAmoled,
@@ -315,7 +306,7 @@ fun ThemeSettingsScreen(
                 SegmentedColumn(title = "预测性返回") {
                     item {
                         BaseWidget(
-                            icon = Icons.AutoMirrored.Filled.ArrowBack,
+                            icon = "arrow_back",
                             title = "预测性返回动画",
                             description = pbAnim.label,
                             onClick = { showPredictiveBackAnimationDialog = true },
@@ -324,7 +315,7 @@ fun ThemeSettingsScreen(
                     if (pbAnim != PredictiveBackAnimation.None) {
                         item {
                             BaseWidget(
-                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                icon = "arrow_back",
                                 title = "退场方向",
                                 description = pbDir.label,
                                 onClick = { showPredictiveBackExitDirectionDialog = true },

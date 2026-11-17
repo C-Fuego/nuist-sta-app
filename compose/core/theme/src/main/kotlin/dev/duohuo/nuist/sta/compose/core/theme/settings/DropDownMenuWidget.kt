@@ -13,13 +13,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import dev.duohuo.nuist.sta.compose.core.theme.settings.menu.GroupedDropdownMenuPopup
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DropDownMenuWidget(
-    icon: ImageVector? = null,
+    icon: String? = null,
     title: String,
     description: String? = null,
     enabled: Boolean = true,

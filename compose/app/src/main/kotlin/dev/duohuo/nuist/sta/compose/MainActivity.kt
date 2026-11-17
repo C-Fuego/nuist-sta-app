@@ -1,5 +1,11 @@
 package dev.duohuo.nuist.sta.compose
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -45,36 +51,8 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.Badge
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
-import dev.duohuo.nuist.sta.compose.ui.SymbolIcon
+import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import dev.duohuo.nuist.sta.compose.ui.library.FloatingBottomBar
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MenuOpen
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.School
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.filled.Lightbulb
-import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -106,7 +84,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -310,17 +287,17 @@ private sealed interface OpenTarget {
 }
 
 /** 小程序入口（宫格项）。 */
-private data class AppEntry(val id: String, val label: String, val icon: ImageVector)
+private data class AppEntry(val id: String, val label: String, val icon: String)
 
 private val appEntries = listOf(
-    AppEntry("free-classroom", "空教室", Icons.Filled.MeetingRoom),
-    AppEntry("electricity", "电费", Icons.Filled.Bolt),
-    AppEntry("score", "成绩", Icons.Filled.Assessment),
-    AppEntry("credits", "双创", Icons.Filled.Lightbulb),
-    AppEntry("labor", "劳动", Icons.Filled.Work),
-    AppEntry("bulletin", "公告", Icons.Filled.Campaign),
-    AppEntry("timetable", "课表", Icons.Filled.CalendarMonth),
-    AppEntry("map", "地图", Icons.Filled.Map),
+    AppEntry("free-classroom", "空教室", "meeting_room"),
+    AppEntry("electricity", "电费", "bolt"),
+    AppEntry("score", "成绩", "analytics"),
+    AppEntry("credits", "双创", "lightbulb"),
+    AppEntry("labor", "劳动", "work"),
+    AppEntry("bulletin", "公告", "campaign"),
+    AppEntry("timetable", "课表", "calendar_month"),
+    AppEntry("map", "地图", "map"),
 )
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class, ExperimentalMaterial3Api::class)
@@ -364,9 +341,9 @@ private fun AppShell(
                             },
                         ) {
                             if (railState.targetValue == WideNavigationRailValue.Expanded) {
-                                Icon(Icons.Filled.MenuOpen, contentDescription = "收起导航栏")
+                                SymbolIcon("menu_open", contentDescription = "收起导航栏")
                             } else {
-                                Icon(Icons.Filled.Menu, contentDescription = "展开导航栏")
+                                SymbolIcon("menu", contentDescription = "展开导航栏")
                             }
                         }
                     },
@@ -531,6 +508,25 @@ scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
+        // 首次进入/刷新时的骨架屏（数据层接入后换成真实 loading）
+        var loading by rememberSaveable { androidx.compose.runtime.mutableStateOf(true) }
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(500)
+            loading = false
+        }
+        if (loading) {
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(inner),
+                contentPadding = PaddingValues(
+                    top = 12.dp,
+                    bottom = maxOf(24.dp, outerPadding.calculateBottomPadding()),
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                items(4) { HomeCardSkeleton() }
+            }
+            return@Scaffold
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
             // 悬浮底栏净空取 max：底栏高度替代页面固定留白，避免叠加过大
@@ -538,30 +534,26 @@ scrollBehavior = scrollBehavior,
                 bottom = maxOf(24.dp, outerPadding.calculateBottomPadding()),
             ),
         ) {
-            item { HomeBulletinCard(onOpen = { onOpen(entryById("bulletin")) }) }
-            item { HomeElectricityCard(onOpen = { onOpen(entryById("electricity")) }) }
-            item { HomeTimetableCard(onOpen = { onOpen(entryById("timetable")) }) }
-            item { HomeExamCard() }
-            // 快捷入口：与学习页并排卡同款形态，带「校园导览」分组标题
+            // 组 1：今日概览（下一节课 / 电费 / 待考）
+            item {
+                HomeTodaySection(
+                    onOpenTimetable = { onOpen(entryById("timetable")) },
+                    onOpenElectricity = { onOpen(entryById("electricity")) },
+                )
+            }
+            // 组 2：信息公告（最新三条 + 查看全部）
+            item {
+                HomeBulletinSection(onOpenAll = { onOpen(entryById("bulletin")) })
+            }
+            // 组 3：校园导览（并排入口，与学习页入口同款）
             item {
                 Text(
                     "校园导览",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    // 与 SegmentedColumn 分组标题的节奏一致：上方 16dp、下方 16dp
-                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 16.dp),
+                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 12.dp),
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                ) {
-                    StudyEntry("空教室", Icons.Filled.MeetingRoom, Modifier.weight(1f)) {
-                        onOpen(entryById("free-classroom"))
-                    }
-                    StudyEntry("校园地图", Icons.Filled.Map, Modifier.weight(1f)) {
-                        onOpen(entryById("map"))
-                    }
-                }
+                HomeEntrySection { id -> onOpen(entryById(id)) }
             }
         }
     }
@@ -589,27 +581,45 @@ scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
+        var termIndex by rememberSaveable { androidx.compose.runtime.mutableIntStateOf(0) }
+        var showTermDialog by rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+        if (showTermDialog) {
+            dev.duohuo.nuist.sta.compose.core.theme.settings.SingleChoiceDialog(
+                title = "切换学期",
+                items = StudyMock.terms.map { it.label },
+                selectedIndex = termIndex,
+                onDismiss = { showTermDialog = false },
+                onSelect = { index ->
+                    showTermDialog = false
+                    termIndex = index
+                },
+            )
+        }
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
                 .padding(bottom = maxOf(16.dp, outerPadding.calculateBottomPadding())),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            StudentInfoSection(StudyMock.student)
-            AcademicSection(StudyMock.academic)
+            val term = StudyMock.terms[termIndex.coerceIn(0, StudyMock.terms.lastIndex)]
+            StudentInfoSection(
+                info = StudyMock.student.copy(semester = term.label),
+                onSemesterClick = { showTermDialog = true },
+            )
+            AcademicSection(term.academic)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
-                StudyEntry("成绩", Icons.Filled.Assessment, Modifier.weight(1f)) { onOpen("score") }
-                StudyEntry("双创", Icons.Filled.Lightbulb, Modifier.weight(1f)) { onOpen("credits") }
-                StudyEntry("劳动", Icons.Filled.Work, Modifier.weight(1f)) { onOpen("labor") }
+                StudyEntry("成绩", "analytics", Modifier.weight(1f)) { onOpen("score") }
+                StudyEntry("双创", "lightbulb", Modifier.weight(1f)) { onOpen("credits") }
+                StudyEntry("劳动", "work", Modifier.weight(1f)) { onOpen("labor") }
             }
         }
     }
 }
 
 @Composable
-private fun StudyEntry(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun StudyEntry(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(
         modifier = modifier.height(72.dp).clip(MaterialTheme.shapes.large)
@@ -618,7 +628,7 @@ private fun StudyEntry(label: String, icon: ImageVector, modifier: Modifier = Mo
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Icon(icon, contentDescription = label, tint = scheme.primary, modifier = Modifier.size(24.dp))
+        SymbolIcon(icon, contentDescription = label, tint = scheme.primary, modifier = Modifier.size(24.dp))
         Spacer(Modifier.height(6.dp))
         Text(label, style = MaterialTheme.typography.labelLarge, color = scheme.onSurface)
     }
@@ -651,16 +661,16 @@ scrollBehavior = scrollBehavior,
         ) {
             SegmentedColumn(title = "账号") {
                 item {
-                    BaseWidget(icon = Icons.Filled.Link, title = "统一门户",
+                    BaseWidget(icon = "link", title = "统一门户",
                         description = "绑定后无感使用校级服务", onClick = {}) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
                 item {
-                    BaseWidget(icon = Icons.Filled.Badge, title = "学生信息",
+                    BaseWidget(icon = "badge", title = "学生信息",
                         description = "学号、院系与班级", onClick = {}) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
@@ -668,16 +678,16 @@ scrollBehavior = scrollBehavior,
 
             SegmentedColumn(title = "设置") {
                 item {
-                    BaseWidget(icon = Icons.Filled.Palette, title = "主题设置",
+                    BaseWidget(icon = "palette", title = "主题设置",
                         description = "主题模式、配色、预测性返回", onClick = onOpenThemeSettings) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
                 item {
-                    BaseWidget(icon = Icons.Filled.BugReport, title = "诊断与日志",
+                    BaseWidget(icon = "bug_report", title = "诊断与日志",
                         description = "导出 / 清除本机诊断日志", onClick = {}) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
@@ -685,16 +695,16 @@ scrollBehavior = scrollBehavior,
 
             SegmentedColumn(title = "关于") {
                 item {
-                    BaseWidget(icon = Icons.Filled.Info, title = "关于 NUIST++",
+                    BaseWidget(icon = "info", title = "关于 NUIST++",
                         description = "版本 0.1.0-compose", onClick = {}) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
                 item {
-                    BaseWidget(icon = Icons.Filled.Description, title = "开源许可",
+                    BaseWidget(icon = "description", title = "开源许可",
                         description = "第三方库许可列表", onClick = {}) {
-                        _ -> Icon(Icons.Filled.ChevronRight, contentDescription = null,
+                        _ -> SymbolIcon("chevron_right", contentDescription = null,
                             tint = scheme.onSurfaceVariant)
                     }
                 }
@@ -719,4 +729,66 @@ private fun BulletinTab(onBack: () -> Unit) {
 @Composable
 private fun BackHandlerWrapper(onBack: () -> Unit) {
     androidx.activity.compose.BackHandler(enabled = true, onBack = onBack)
+}
+
+/** 首页卡骨架（数据层未接入时的加载占位；M3 无 skeleton 组件，用色调块 + 呼吸动画）。 */
+@Composable
+private fun HomeCardSkeleton() {
+    val scheme = MaterialTheme.colorScheme
+    val transition = rememberInfiniteTransition(label = "skeleton")
+    val alpha by transition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.75f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 900,
+                easing = FastOutSlowInEasing,
+            ),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "skeleton-alpha",
+    )
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        Box(
+            Modifier
+                .padding(start = 12.dp, bottom = 8.dp)
+                .size(width = 72.dp, height = 12.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(scheme.surfaceContainerHighest.copy(alpha = alpha)),
+        )
+        androidx.compose.material3.Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = scheme.surfaceBright,
+            shape = MaterialTheme.shapes.extraLarge,
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    Modifier
+                        .size(40.dp)
+                        .clip(MaterialTheme.shapes.medium)
+                        .background(scheme.surfaceContainerHighest.copy(alpha = alpha)),
+                )
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth(0.75f)
+                            .height(14.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(scheme.surfaceContainerHighest.copy(alpha = alpha)),
+                    )
+                    Box(
+                        Modifier
+                            .fillMaxWidth(0.5f)
+                            .height(11.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(scheme.surfaceContainerHighest.copy(alpha = alpha)),
+                    )
+                }
+            }
+        }
+    }
 }
