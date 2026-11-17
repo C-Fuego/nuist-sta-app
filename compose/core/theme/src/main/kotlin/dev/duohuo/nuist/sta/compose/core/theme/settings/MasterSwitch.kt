@@ -2,6 +2,9 @@
 // Copyright (C) 2026 InstallerX Revived contributors
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.Icons
 import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
@@ -84,11 +87,10 @@ fun MasterSwitch(
                 uncheckedIconColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             ),
             thumbContent = {
-                SymbolIcon(
-                    name = if (checked) "check" else "close",
-                    filled = false,
+                Icon(
+                    imageVector = if (checked) Icons.Filled.Check else Icons.Filled.Close,
+                    contentDescription = null,
                     modifier = Modifier.size(SwitchDefaults.IconSize),
-                    fontSize = 14.sp,
                 )
             },
         )

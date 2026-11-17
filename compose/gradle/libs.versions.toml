@@ -3,7 +3,7 @@ agp = "9.1.0"
 kotlin = "2.4.0"
 composeBom = "2026.11.00"
 coreKtx = "1.15.0"
-activityCompose = "1.9.3"
+activityCompose = "1.12.4"
 lifecycle = "2.8.7"
 navigationCompose = "2.8.5"
 okhttp = "4.12.0"
@@ -12,6 +12,7 @@ kotlinxSerialization = "1.7.3"
 datastore = "1.1.1"
 securityCrypto = "1.1.0-alpha06"
 materialKolor = "6.0.0"
+miuix = "0.9.4"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -36,6 +37,12 @@ androidx-security-crypto = { module = "androidx.security:security-crypto", versi
 materialIconsExtended = { module = "androidx.compose.material:material-icons-extended", version = "1.7.8" }
 materialIconsCore = { module = "androidx.compose.material:material-icons-core", version = "1.7.8" }
 materialKolor = { module = "com.materialkolor:material-kolor-material3", version.ref = "materialKolor" }
+miuix-nav = { module = "top.yukonga.miuix.kmp:miuix-nav-android", version.ref = "miuix" }
+miuix-core = { module = "top.yukonga.miuix.kmp:miuix-core-android", version.ref = "miuix" }
+miuix-glass = { module = "top.yukonga.miuix.kmp:miuix-glass-android", version.ref = "miuix" }
+miuix-blur = { module = "top.yukonga.miuix.kmp:miuix-blur-android", version.ref = "miuix" }
+miuix-material = { module = "top.yukonga.miuix.kmp:miuix-material-android", version.ref = "miuix" }
+miuix-ui = { module = "top.yukonga.miuix.kmp:miuix-ui-android", version.ref = "miuix" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

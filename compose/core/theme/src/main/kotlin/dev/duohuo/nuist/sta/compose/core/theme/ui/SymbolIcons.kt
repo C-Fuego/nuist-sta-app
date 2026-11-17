@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.core.theme.ui
 
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -99,7 +100,13 @@ private val symbolCodepoints = mapOf(
 
 /**
  * 用 Material Symbols 字形渲染一个图标（名称如 "home"、"school"、"person"）。
- * 颜色默认取 LocalContentColor（导航项等容器会下发）。
+ *
+ * 精确**光学居中**：图标字体作为 Text 渲染时，字形墨迹（ink）并不落在
+ * 行盒中心（例如 ✓ 偏上、× 左右不对称），仅靠 Box(contentAlignment=Center)
+ * 会让墨迹看起来偏离圆心。这里用 [androidx.compose.ui.text.TextMeasurer]
+ * 量出该字形真实的墨迹包围盒（[androidx.compose.ui.text.TextLayoutResult.getBoundingBox]），
+ * 再按"行盒中心 − 墨迹中心"的差值做像素级偏移，使墨迹中心与容器中心重合。
+ * 结果按 (name, filled, fontSize) 缓存，不会每帧重复测量。
  */
 @Composable
 fun SymbolIcon(
@@ -110,29 +117,51 @@ fun SymbolIcon(
     fontSize: TextUnit = 24.sp,
     contentDescription: String? = null,
 ) {
-    Text(
-        symbolCodepoints[name] ?: name,
+    val text = symbolCodepoints[name] ?: name
+    val textStyle = androidx.compose.ui.text.TextStyle(
         fontFamily = if (filled) SymbolsFilled else SymbolsOutlined,
         fontSize = fontSize,
-        // 图标字体作为 Text 渲染时，字形墨水区偏离行盒中心（开关 ✓/×、色板
-        // 对勾看起来偏上）。关闭字体额外内边距并裁掉上下行距（Trim.Both），
-        // 让字形在盒子里真正居中。
-        lineHeight = fontSize,
-        style = androidx.compose.ui.text.TextStyle(
-            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
-                includeFontPadding = false,
-            ),
-            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
-                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
-                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
-            ),
-        ),
         color = tint,
-        modifier = if (contentDescription != null) {
-            modifier.semantics { this.contentDescription = contentDescription }
+        lineHeight = fontSize,
+        platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+            includeFontPadding = false,
+        ),
+        lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+            alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+            trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+        ),
+    )
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    // 墨迹偏移：行盒中心 − 墨迹中心（像素）
+    val nudge = androidx.compose.runtime.remember(text, filled, fontSize, measurer) {
+        val layout = measurer.measure(
+            androidx.compose.ui.text.AnnotatedString(text),
+            textStyle,
+            maxLines = 1,
+        )
+        val ink = if (layout.lineCount > 0 && text.isNotEmpty()) {
+            layout.getBoundingBox(0)
         } else {
-            modifier
-        },
+            androidx.compose.ui.geometry.Rect.Zero
+        }
+        androidx.compose.ui.unit.IntOffset(
+            (layout.size.width / 2f - (ink.left + ink.right) / 2f).toInt(),
+            (layout.size.height / 2f - (ink.top + ink.bottom) / 2f).toInt(),
+        )
+    }
+
+    Text(
+        text = text,
+        style = textStyle,
         maxLines = 1,
+        modifier = modifier
+            .offset { nudge }
+            .let { m ->
+                if (contentDescription != null) {
+                    m.semantics { this.contentDescription = contentDescription }
+                } else {
+                    m
+                }
+            },
     )
 }

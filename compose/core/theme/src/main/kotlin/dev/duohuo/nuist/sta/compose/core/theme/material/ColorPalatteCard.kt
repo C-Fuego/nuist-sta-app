@@ -4,6 +4,9 @@
 
 package dev.duohuo.nuist.sta.compose.core.theme.material
 
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.Icons
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.hoverable
@@ -169,11 +172,11 @@ private fun FullSwatchContent(scheme: ColorScheme, isSelected: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
-                        name = "check",
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
                         tint = scheme.inversePrimary,
                         modifier = Modifier.size(16.dp),
-                        fontSize = 16.sp,
                     )
                 }
             }
@@ -205,11 +208,11 @@ private fun FallbackSwatchContent(baseColor: Color, isSelected: Boolean) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
-                    dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
-                        name = "check",
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(16.dp),
-                        fontSize = 16.sp,
                     )
                 }
             }
