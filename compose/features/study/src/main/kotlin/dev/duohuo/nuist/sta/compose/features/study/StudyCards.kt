@@ -152,8 +152,7 @@ private fun Metric(label: String, value: String, modifier: Modifier = Modifier) 
     Column(modifier) {
         Text(
             value,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.headlineSmallEmphasized,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(3.dp))

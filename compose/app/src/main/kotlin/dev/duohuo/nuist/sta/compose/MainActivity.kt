@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -33,6 +36,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +61,8 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import dev.duohuo.nuist.sta.compose.ui.SymbolIcon
+import dev.duohuo.nuist.sta.compose.ui.library.FloatingBottomBar
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MenuOpen
 import androidx.compose.material.icons.outlined.Home
@@ -69,7 +79,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.WideNavigationRailValue
 import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.material3.Scaffold
@@ -79,6 +89,8 @@ import androidx.compose.material3.WideNavigationRail
 import androidx.compose.material3.WideNavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -140,6 +152,7 @@ class MainActivity : ComponentActivity() {
                         dynamicColor = false,
                         darkModeIndex = 0,
                         useAmoled = false,
+                        bottomBarFloating = false,
                         pbAnimName = dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation.AOSP.name,
                         pbDirName = dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection.FOLLOW_GESTURE.name,
                     ),
@@ -167,6 +180,7 @@ class MainActivity : ComponentActivity() {
             }
             var dynamicColor by remember { mutableStateOf(initial.dynamicColor) }
             var useAmoled by remember { mutableStateOf(initial.useAmoled) }
+            var bottomBarFloating by remember { mutableStateOf(initial.bottomBarFloating) }
             var darkModeIndex by remember { mutableIntStateOf(initial.darkModeIndex) }
             var pbAnim by remember {
                 mutableStateOf(
@@ -191,6 +205,7 @@ class MainActivity : ComponentActivity() {
                     dynamicColor = dynamicColor,
                     darkModeIndex = darkModeIndex,
                     useAmoled = useAmoled,
+                    bottomBarFloating = bottomBarFloating,
                     pbAnimName = pbAnim.name,
                     pbDirName = pbDir.name,
                 )
@@ -211,6 +226,7 @@ class MainActivity : ComponentActivity() {
                 AppShell(
                     pbAnim = pbAnim,
                     pbDir = pbDir,
+                    bottomBarFloating = bottomBarFloating,
                     onOpenThemeSettings = { showThemeSettings = true },
                 )
                 if (showThemeSettings) {
@@ -231,6 +247,8 @@ class MainActivity : ComponentActivity() {
                             onDynamicColorChange = { dynamicColor = it; persist() },
                             useAmoled = useAmoled,
                             onUseAmoledChange = { useAmoled = it; persist() },
+                            bottomBarFloating = bottomBarFloating,
+                            onBottomBarFloatingChange = { bottomBarFloating = it; persist() },
                             pbAnim = pbAnim,
                             onPbAnimChange = { pbAnim = it; persist() },
                             pbDir = pbDir,
@@ -263,56 +281,68 @@ private val appEntries = listOf(
 private fun AppShell(
     pbAnim: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation,
     pbDir: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection,
+    bottomBarFloating: Boolean,
     onOpenThemeSettings: () -> Unit,
 ) {
     var openedApp by remember { mutableStateOf<AppEntry?>(null) }
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0) { 3 }
 
-    val opened = openedApp
-    if (opened != null) {
-        // 全屏小程序：预测性返回 + 大屏限宽。
-        dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
-            animation = pbAnim,
-            direction = pbDir,
-            onBack = { openedApp = null },
-        ) {
-            ContentMaxWidth {
-            androidx.compose.runtime.CompositionLocalProvider(
-                dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides { openedApp = null },
+    // 主界面 ↔ 全屏小程序：进入自下而上滑入+淡入（M3E spring）；
+    // 退出动画由 PredictiveBackPage 的预测性返回手势承担，此处瞬时切换。
+    AnimatedContent(
+        targetState = openedApp,
+        transitionSpec = {
+            if (targetState != null) {
+                // 与 InstallerX 页面进入一致：纯淡入
+                fadeIn(spring(dampingRatio = 1f, stiffness = 380f)) togetherWith ExitTransition.None
+            } else {
+                EnterTransition.None togetherWith ExitTransition.None
+            }
+        },
+        label = "app-shell",
+    ) { opened ->
+        if (opened != null) {
+            // 全屏小程序：预测性返回 + 大屏限宽。
+            dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
+                animation = pbAnim,
+                direction = pbDir,
+                onBack = { openedApp = null },
             ) {
-            AnimatedContent(
-                targetState = opened.id,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "app-open",
-            ) { id ->
-                when (id) {
-                    "free-classroom" -> FreeClassroomScreen()
-                    "electricity" -> ElectricityScreen()
-                    "score" -> ScoreScreen()
-                    "credits" -> InnovationCreditScreen()
-                    "labor" -> LaborScoreScreen()
-                    "bulletin" -> BulletinTab(onBack = { openedApp = null })
-                    "timetable" -> TimetableScreen()
-                    else -> CampusMapScreen()
+                ContentMaxWidth {
+                androidx.compose.runtime.CompositionLocalProvider(
+                    dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides { openedApp = null },
+                ) {
+                AnimatedContent(
+                    targetState = opened.id,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "app-open",
+                ) { id ->
+                    when (id) {
+                        "free-classroom" -> FreeClassroomScreen()
+                        "electricity" -> ElectricityScreen()
+                        "score" -> ScoreScreen()
+                        "credits" -> InnovationCreditScreen()
+                        "labor" -> LaborScoreScreen()
+                        "bulletin" -> BulletinTab(onBack = { openedApp = null })
+                        "timetable" -> TimetableScreen()
+                        else -> CampusMapScreen()
+                    }
+                }
+                }
                 }
             }
-            }
-            }
-        }
-        return
-    }
-
-    val destinations = listOf(
-        TabDest("首页", Icons.Filled.Home, Icons.Outlined.Home),
-        TabDest("学习", Icons.Filled.School, Icons.Outlined.School),
-        TabDest("我的", Icons.Filled.Person, Icons.Outlined.Person),
+        } else {
+            val destinations = listOf(
+        TabDest("首页", "home"),
+        TabDest("学习", "school"),
+        TabDest("我的", "person"),
     )
     val select: (Int) -> Unit = { idx -> scope.launch { pagerState.animateScrollToPage(idx) } }
     val openApp: (AppEntry) -> Unit = { openedApp = it }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        val wide = maxWidth >= 600.dp
+        val wide = maxWidth >= 840.dp
         if (wide) {
             // 宽屏：左侧 WideNavigationRail（可展开，照搬 InstallerX 的 header 展开按钮）
             val railState = rememberWideNavigationRailState()
@@ -346,12 +376,7 @@ private fun AppShell(
                             railExpanded = railState.targetValue == WideNavigationRailValue.Expanded,
                             selected = selected,
                             onClick = { select(idx) },
-                            icon = {
-                                Icon(
-                                    if (selected) d.iconFilled else d.iconOutlined,
-                                    contentDescription = d.label,
-                                )
-                            },
+                            icon = { SymbolIcon(d.symbol, filled = selected) },
                             label = { Text(d.label) },
                         )
                     }
@@ -360,37 +385,64 @@ private fun AppShell(
                     TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
                 }
             }
-        } else {
-            // 紧凑：底部 ShortNavigationBar，可横向滑动切页
-            Scaffold(
-                bottomBar = {
-                    ShortNavigationBar {
-                        destinations.forEachIndexed { idx, d ->
-                            val selected = pagerState.currentPage == idx
-                            ShortNavigationBarItem(
-                                selected = selected,
-                                onClick = { select(idx) },
-                                icon = {
-                                    Icon(
-                                        if (selected) d.iconFilled else d.iconOutlined,
-                                        contentDescription = d.label,
-                                    )
-                                },
-                                label = { Text(d.label) },
-                            )
+        } else if (bottomBarFloating) {
+            // 页面底色与 InstallerX 一致：surfaceContainer
+            // 紧凑 + 悬浮底栏：内容全尺寸铺满、从胶囊两侧穿过（真悬浮），
+            // 底栏作为 overlay 浮在其上（组件为移植的 FloatingBottomBar，None 纯色模式）
+            Box(Modifier.fillMaxSize()) {
+                TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
+                FloatingBottomBar(
+                    items = destinations,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 12.dp)
+                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                    selectedIndex = { pagerState.settledPage },
+                    onSelected = { index -> select(index) },
+                    iconContent = { tab, index, isActiveLayer ->
+                        SymbolIcon(tab.symbol, filled = isActiveLayer)
+                    },
+                    labelContent = { tab, _ ->
+                        Text(
+                            text = tab.label,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Visible,
+                        )
+                    },
+                )
+            }
+            } else {
+                // 紧凑：底部 ShortNavigationBar，可横向滑动切页
+                Scaffold(
+                    bottomBar = {
+                        ShortNavigationBar {
+                            destinations.forEachIndexed { idx, d ->
+                                val selected = pagerState.currentPage == idx
+                                ShortNavigationBarItem(
+                                    selected = selected,
+                                    onClick = { select(idx) },
+                                    icon = { SymbolIcon(d.symbol, filled = selected) },
+                                    label = { Text(d.label) },
+                                )
+                            }
                         }
+                    },
+                ) { inner ->
+                    Box(Modifier.fillMaxSize().padding(inner)) {
+                        TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
                     }
-                },
-            ) { inner ->
-                Box(Modifier.fillMaxSize().padding(inner)) {
-                    TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
                 }
             }
         }
     }
 }
 
-private data class TabDest(val label: String, val iconFilled: ImageVector, val iconOutlined: ImageVector)
+}
+
+private data class TabDest(val label: String, val symbol: String)
 
 /** 三页签横向分页：支持左右滑动切换 + 点击导航滚动到对应页。 */
 @Composable
@@ -405,6 +457,8 @@ private fun TabPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize(),
         userScrollEnabled = true,
+        // 保留全部页签组合：切换 tab 不触发整页重组（消除悬浮底栏点击切换卡顿）
+        beyondViewportPageCount = 2,
     ) { page ->
         when (page) {
             0 -> HomeTab(onOpen = onOpen)
@@ -437,14 +491,19 @@ private fun ContentMaxWidth(modifier: Modifier = Modifier, content: @Composable 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeTab(onOpen: (AppEntry) -> Unit) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text("NUIST++") },
-                subtitle = { Text("查空教室、看成绩、查电费、逛校园") },
-                scrollBehavior = scrollBehavior,
+            LargeFlexibleTopAppBar(
+                title = { Text("NUIST++", modifier = Modifier.padding(start = 12.dp)) },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
@@ -486,15 +545,20 @@ private fun entryById(id: String): AppEntry = appEntries.first { it.id == id }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun StudyTab(onOpen: (String) -> Unit) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scheme = MaterialTheme.colorScheme
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text("学习") },
-                subtitle = { Text("学业进度与学习卡片") },
-                scrollBehavior = scrollBehavior,
+            LargeFlexibleTopAppBar(
+                title = { Text("学习", modifier = Modifier.padding(start = 12.dp)) },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
@@ -536,15 +600,20 @@ private fun StudyEntry(label: String, icon: ImageVector, modifier: Modifier = Mo
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileTab(onOpenThemeSettings: () -> Unit) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scheme = MaterialTheme.colorScheme
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text("我的") },
-                subtitle = { Text("账号、设置与关于") },
-                scrollBehavior = scrollBehavior,
+            LargeFlexibleTopAppBar(
+                title = { Text("我的", modifier = Modifier.padding(start = 12.dp)) },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->

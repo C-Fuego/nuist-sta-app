@@ -10,6 +10,7 @@ data class ThemePrefsSnapshot(
     val dynamicColor: Boolean,
     val darkModeIndex: Int,
     val useAmoled: Boolean,
+    val bottomBarFloating: Boolean,
     val pbAnimName: String,
     val pbDirName: String,
 )
@@ -38,6 +39,7 @@ object ThemePrefs {
             dynamicColor = sp.getBoolean("dynamic_color", defaults.dynamicColor),
             darkModeIndex = sp.getInt("dark_mode_index", defaults.darkModeIndex),
             useAmoled = sp.getBoolean("use_amoled", defaults.useAmoled),
+            bottomBarFloating = sp.getBoolean("bottom_bar_floating", defaults.bottomBarFloating),
             pbAnimName = sp.getString("pb_anim", defaults.pbAnimName) ?: defaults.pbAnimName,
             pbDirName = sp.getString("pb_dir", defaults.pbDirName) ?: defaults.pbDirName,
         )
@@ -51,6 +53,7 @@ object ThemePrefs {
         dynamicColor: Boolean,
         darkModeIndex: Int,
         useAmoled: Boolean,
+        bottomBarFloating: Boolean,
         pbAnimName: String,
         pbDirName: String,
     ) {
@@ -62,6 +65,7 @@ object ThemePrefs {
             .putBoolean("dynamic_color", dynamicColor)
             .putInt("dark_mode_index", darkModeIndex)
             .putBoolean("use_amoled", useAmoled)
+            .putBoolean("bottom_bar_floating", bottomBarFloating)
             .putString("pb_anim", pbAnimName)
             .putString("pb_dir", pbDirName)
             .apply()

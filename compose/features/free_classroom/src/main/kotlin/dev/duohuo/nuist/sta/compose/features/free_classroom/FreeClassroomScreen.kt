@@ -23,9 +23,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.material.icons.Icons
@@ -86,20 +88,25 @@ fun FreeClassroomContent(
     onFloor: (Int?) -> Unit,
     onZone: (String?) -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text("空教室") },
-                subtitle = { Text("按教学楼与时段查空闲教室") },
+            LargeFlexibleTopAppBar(
+                title = { Text("空教室", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
                 actions = {
                     IconButton(onClick = onRefresh) {
                         Icon(Icons.Filled.Refresh, contentDescription = "刷新")
                     }
                 },
-                scrollBehavior = scrollBehavior,
+                                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
@@ -289,22 +296,17 @@ private fun PeriodHeader(
                 style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurfaceVariant,
             )
-            day.groups.forEachIndexed { i, g ->
-                val on = selected.contains(i)
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 2.dp)
-                        .width(36.dp)
-                        .clip(MaterialTheme.shapes.extraSmall)
-                        .background(if (on) scheme.primary else scheme.surfaceContainerHighest)
-                        .clickable { onToggleGroup(i) }
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        g.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (on) scheme.onPrimary else scheme.onSurfaceVariant,
+            // M3E ButtonGroup：连接式多选时段组（替代手搓 chips）
+            ButtonGroup(
+                overflowIndicator = { menuState ->
+                    ButtonGroupDefaults.OverflowIndicator(menuState)
+                },
+            ) {
+                day.groups.forEachIndexed { i, g ->
+                    toggleableItem(
+                        checked = selected.contains(i),
+                        onCheckedChange = { onToggleGroup(i) },
+                        label = g.label,
                     )
                 }
             }

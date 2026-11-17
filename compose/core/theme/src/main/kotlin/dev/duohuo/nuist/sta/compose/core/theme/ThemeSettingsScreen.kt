@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.filled.VerticalAlignBottom
 import androidx.compose.material.icons.outlined.InvertColors
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -82,6 +83,8 @@ fun ThemeSettingsScreen(
     onDynamicColorChange: (Boolean) -> Unit,
     useAmoled: Boolean,
     onUseAmoledChange: (Boolean) -> Unit,
+    bottomBarFloating: Boolean,
+    onBottomBarFloatingChange: (Boolean) -> Unit,
     pbAnim: PredictiveBackAnimation,
     onPbAnimChange: (PredictiveBackAnimation) -> Unit,
     pbDir: PredictiveBackExitDirection,
@@ -204,6 +207,15 @@ fun ThemeSettingsScreen(
                             description = "深色主题下使用纯黑背景（AMOLED）",
                             checked = useAmoled,
                             onCheckedChange = onUseAmoledChange,
+                        )
+                    }
+                    item {
+                        SwitchWidget(
+                            iconPlaceholder = false,
+                            title = "悬浮底栏",
+                            description = "紧凑布局下底部导航悬浮显示",
+                            checked = bottomBarFloating,
+                            onCheckedChange = onBottomBarFloatingChange,
                         )
                     }
                 }

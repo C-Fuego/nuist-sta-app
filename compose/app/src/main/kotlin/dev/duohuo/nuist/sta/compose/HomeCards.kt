@@ -53,8 +53,7 @@ private fun HomeInfoCard(
     metricUnit: String = "",
     subtitle: String,
     onClick: (() -> Unit)? = null,
-    metricStyle: TextStyle =
-        MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+    metricStyle: TextStyle = MaterialTheme.typography.headlineMediumEmphasized,
     metricMaxLines: Int = 1,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -112,7 +111,7 @@ internal fun HomeBulletinCard(onOpen: () -> Unit) {
         metric = b.title,
         subtitle = "${b.publisher.ifEmpty { "学校信息公告栏" }} · ${b.publishedAt}",
         onClick = onOpen,
-        metricStyle = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+        metricStyle = MaterialTheme.typography.titleLargeEmphasized,
         metricMaxLines = 2,
     )
 }

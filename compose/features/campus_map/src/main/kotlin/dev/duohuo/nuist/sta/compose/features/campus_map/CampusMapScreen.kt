@@ -23,9 +23,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FlexibleBottomAppBar
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -54,16 +57,21 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CampusMapScreen() {
-    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scheme = MaterialTheme.colorScheme
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
-            MediumFlexibleTopAppBar(
-                title = { Text("校园地图") },
-                subtitle = { Text("搜索地点、楼宇详情、小公交实时位置") },
+            LargeFlexibleTopAppBar(
+                title = { Text("校园地图", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
-                scrollBehavior = scrollBehavior,
+                                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
@@ -77,52 +85,57 @@ fun CampusMapScreen() {
                         description = "教学楼、宿舍、服务点",
                     )
                 }
-                // 地图占位区（MapLibre 待接入）
+                // 地图占位区（MapLibre 待接入），工具条悬浮其上
                 item {
                     BaseItemContainer {
-                        Column(
+                        Box(
                             modifier = Modifier.fillMaxWidth().height(320.dp).padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
                         ) {
-                            Box(
-                                modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.large)
-                                    .background(MaterialTheme.colorScheme.primaryContainer),
-                                contentAlignment = Alignment.Center,
+                            Column(
+                                modifier = Modifier.align(Alignment.Center),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Icon(
-                                    Icons.Filled.Place,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(32.dp),
+                                Box(
+                                    modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.large)
+                                        .background(MaterialTheme.colorScheme.primaryContainer),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Place,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                }
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    "地图模块接入中",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = scheme.onSurface,
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "基于 MapLibre GL 的校园底图将在后续迭代接入：\n地点搜索、楼宇详情、从课表直达教室、小公交实时位置。",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = scheme.onSurfaceVariant,
                                 )
                             }
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                "地图模块接入中",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = scheme.onSurface,
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                "基于 MapLibre GL 的校园底图将在后续迭代接入：\n地点搜索、楼宇详情、从课表直达教室、小公交实时位置。",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = scheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                // 工具条（接入地图后变为悬浮工具钮）
-                item {
-                    BaseItemContainer {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            ToolChip("图层", Icons.Filled.Layers)
-                            ToolChip("定位", Icons.Filled.MyLocation)
-                            ToolChip("小公交", Icons.Filled.DirectionsBus)
+                            // M3E 悬浮工具条（接入地图后原位保留）
+                            HorizontalFloatingToolbar(
+                                expanded = true,
+                                modifier = Modifier.align(Alignment.BottomCenter),
+                            ) {
+                                IconButton(onClick = {}) {
+                                    Icon(Icons.Filled.Layers, contentDescription = "图层")
+                                }
+                                IconButton(onClick = {}) {
+                                    Icon(Icons.Filled.MyLocation, contentDescription = "定位")
+                                }
+                                IconButton(onClick = {}) {
+                                    Icon(Icons.Filled.DirectionsBus, contentDescription = "小公交")
+                                }
+                            }
                         }
                     }
                 }
@@ -131,18 +144,3 @@ fun CampusMapScreen() {
     }
 }
 
-@Composable
-private fun ToolChip(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.clip(RoundedCornerShape(50))
-            .background(scheme.surfaceContainerHigh)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(icon, contentDescription = null, tint = scheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(label, style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
-    }
-}
