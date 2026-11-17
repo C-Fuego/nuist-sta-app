@@ -202,12 +202,8 @@ class MainActivity : ComponentActivity() {
                 useAmoled = useAmoled,
             ) {
                 var openedTarget by remember { mutableStateOf<OpenTarget?>(null) }
-                // 首页首次加载态（仅应用启动出现一次，切页返回不重播）
-                var homeLoading by remember { mutableStateOf(true) }
-                LaunchedEffect(Unit) {
-                    kotlinx.coroutines.delay(700)
-                    homeLoading = false
-                }
+                // 首页加载态：mock 数据瞬时可得，默认为 false；接入真实数据后由数据层驱动
+                var homeLoading by remember { mutableStateOf(false) }
                 AnimatedContent(
                     targetState = openedTarget,
                     transitionSpec = {
@@ -528,18 +524,8 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         // 加载态由外层持有（只在应用启动时出现一次，来回切页不重播）
         if (homeLoading) {
-            Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    androidx.compose.material3.LoadingIndicator(
-                        modifier = Modifier.size(56.dp),
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        "正在加载校园数据…",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            Box(Modifier.fillMaxSize().padding(inner)) {
+                dev.duohuo.nuist.sta.compose.core.theme.ui.LoadingState("正在加载校园数据…")
             }
             return@Scaffold
         }

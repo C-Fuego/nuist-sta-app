@@ -140,7 +140,12 @@ scrollBehavior = scrollBehavior,
                     onToggleGroup = onToggleGroup,
                 )
                 val matches = state.matches
-                if (matches.isEmpty()) {
+                if (state.loading && matches.isEmpty()) {
+                    dev.duohuo.nuist.sta.compose.core.theme.ui.LoadingState(
+                        text = "正在查询空教室…",
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else if (matches.isEmpty()) {
                     EmptyState(
                         title = "没有符合条件的空教室",
                         subtitle = "试试放宽楼层、区域或时段筛选",
