@@ -201,92 +201,104 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = dynamicColor,
                 useAmoled = useAmoled,
             ) {
-                var openedTarget by remember { mutableStateOf<OpenTarget?>(null) }
-                // 首页加载态：mock 数据瞬时可得，默认为 false；接入真实数据后由数据层驱动
+                // 应用内返回栈：支持任意层级（主页 → 列表 → 详情 → …）
+                // 每层用独立 key 交给 SaveableStateHolder，返回后恢复滚动位置
+                val backStack = remember { androidx.compose.runtime.mutableStateListOf<Route>() }
+                val saveableStateHolder = rememberSaveableStateHolder()
+                // 首页加载态：mock 瞬时可得，接真实数据后由数据层驱动
                 var homeLoading by remember { mutableStateOf(false) }
+
+                val current = backStack.lastOrNull()
                 AnimatedContent(
-                    targetState = openedTarget,
+                    targetState = current,
                     transitionSpec = {
                         if (targetState != null) {
-                            // 与 InstallerX 页面进入一致：纯淡入
                             fadeIn(spring(dampingRatio = 1f, stiffness = 380f)) togetherWith ExitTransition.None
                         } else {
                             EnterTransition.None togetherWith ExitTransition.None
                         }
                     },
                     label = "app-shell",
-                ) { opened ->
-                    // 用 SaveableStateHolder 按页面 key 保存滚动位置：
-                    // 二级页往返、主页 Tab 切换后都回到原位置
-                    val saveableStateHolder = rememberSaveableStateHolder()
-                    val pageKey = when (opened) {
-                        null -> "main"
-                        is OpenTarget.App -> "app:" + opened.entry.id
-                        OpenTarget.ThemeSettings -> "theme"
-                    }
+                ) { route ->
+                    val pageKey = route?.key ?: "main"
                     saveableStateHolder.SaveableStateProvider(pageKey) {
-                    if (opened != null) {
-                        // 全屏页面：预测性返回（遵循设置的动画档位）+ 大屏限宽。
-                        dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
-                            animation = pbAnim,
-                            direction = pbDir,
-                            onBack = { openedTarget = null },
-                        ) {
-                            ContentMaxWidth {
-                            androidx.compose.runtime.CompositionLocalProvider(
-                                dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides { openedTarget = null },
+                        if (route == null) {
+                            AppShell(
+                                pbAnim = pbAnim,
+                                pbDir = pbDir,
+                                bottomBarFloating = bottomBarFloating,
+                                homeLoading = homeLoading,
+                                onOpen = { entry -> backStack.add(Route.App(entry.id)) },
+                                onOpenThemeSettings = { backStack.add(Route.ThemeSettings) },
+                            )
+                        } else {
+                            val pop: () -> Unit = {
+                                if (backStack.isNotEmpty()) {
+                                    backStack.removeAt(backStack.lastIndex)
+                                }
+                            }
+                            dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
+                                animation = pbAnim,
+                                direction = pbDir,
+                                onBack = pop,
                             ) {
-                                when (opened) {
-                                    is OpenTarget.App -> when (opened.entry.id) {
-                                        "free-classroom" -> FreeClassroomScreen()
-                                        "electricity" -> ElectricityScreen()
-                                        "score" -> ScoreScreen()
-                                        "credits" -> InnovationCreditScreen()
-                                        "labor" -> LaborScoreScreen()
-                                        "bulletin" -> BulletinTab(onBack = { openedTarget = null })
-                                        "timetable" -> TimetableScreen()
-                                        else -> CampusMapScreen()
-                                    }
-                                    OpenTarget.ThemeSettings -> androidx.compose.material3.Surface(
-                                        color = MaterialTheme.colorScheme.surfaceContainer,
-                                        modifier = Modifier.fillMaxSize(),
+                                ContentMaxWidth {
+                                    androidx.compose.runtime.CompositionLocalProvider(
+                                        dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides pop,
                                     ) {
-                                        dev.duohuo.nuist.sta.compose.core.theme.ThemeSettingsScreen(
-                                            seedColor = seedColor,
-                                            onSeedColorChange = { seedColor = it; persist() },
-                                            paletteStyle = paletteStyle,
-                                            onPaletteStyleChange = { paletteStyle = it; persist() },
-                                            colorSpec = colorSpec,
-                                            onColorSpecChange = { colorSpec = it; persist() },
-                                            darkModeIndex = darkModeIndex,
-                                            onDarkModeChange = { darkModeIndex = it; persist() },
-                                            dynamicColor = dynamicColor,
-                                            onDynamicColorChange = { dynamicColor = it; persist() },
-                                            useAmoled = useAmoled,
-                                            onUseAmoledChange = { useAmoled = it; persist() },
-                                            bottomBarFloating = bottomBarFloating,
-                                            onBottomBarFloatingChange = { bottomBarFloating = it; persist() },
-                                            pbAnim = pbAnim,
-                                            onPbAnimChange = { pbAnim = it },
-                                            pbDir = pbDir,
-                                            onPbDirChange = { pbDir = it },
-                                            onBack = { openedTarget = null },
-                                        )
+                                        when (route) {
+                                            is Route.App -> when (route.id) {
+                                                "free-classroom" -> FreeClassroomScreen()
+                                                "electricity" -> ElectricityScreen()
+                                                "score" -> ScoreScreen()
+                                                "credits" -> InnovationCreditScreen()
+                                                "labor" -> LaborScoreScreen()
+                                                "bulletin" -> BulletinListScreen(
+                                                    onOpen = { b -> backStack.add(Route.BulletinDetail(b.id)) },
+                                                )
+                                                "timetable" -> TimetableScreen()
+                                                else -> CampusMapScreen()
+                                            }
+                                            is Route.BulletinDetail -> {
+                                                val bulletin = BulletinMock.items.firstOrNull { it.id == route.id }
+                                                if (bulletin != null) {
+                                                    BulletinDetailScreen(
+                                                        detail = BulletinMock.detail(bulletin),
+                                                        onBack = pop,
+                                                    )
+                                                }
+                                            }
+                                            Route.ThemeSettings -> androidx.compose.material3.Surface(
+                                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                                modifier = Modifier.fillMaxSize(),
+                                            ) {
+                                                dev.duohuo.nuist.sta.compose.core.theme.ThemeSettingsScreen(
+                                                    seedColor = seedColor,
+                                                    onSeedColorChange = { seedColor = it; persist() },
+                                                    paletteStyle = paletteStyle,
+                                                    onPaletteStyleChange = { paletteStyle = it; persist() },
+                                                    colorSpec = colorSpec,
+                                                    onColorSpecChange = { colorSpec = it; persist() },
+                                                    darkModeIndex = darkModeIndex,
+                                                    onDarkModeChange = { darkModeIndex = it; persist() },
+                                                    dynamicColor = dynamicColor,
+                                                    onDynamicColorChange = { dynamicColor = it; persist() },
+                                                    useAmoled = useAmoled,
+                                                    onUseAmoledChange = { useAmoled = it; persist() },
+                                                    bottomBarFloating = bottomBarFloating,
+                                                    onBottomBarFloatingChange = { bottomBarFloating = it; persist() },
+                                                    pbAnim = pbAnim,
+                                                    onPbAnimChange = { pbAnim = it },
+                                                    pbDir = pbDir,
+                                                    onPbDirChange = { pbDir = it },
+                                                    onBack = pop,
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
-                            }
                         }
-                    } else {
-                        AppShell(
-                            pbAnim = pbAnim,
-                            pbDir = pbDir,
-                            bottomBarFloating = bottomBarFloating,
-                            homeLoading = homeLoading,
-                            onOpen = { openedTarget = OpenTarget.App(it) },
-                            onOpenThemeSettings = { openedTarget = OpenTarget.ThemeSettings },
-                        )
-                    }
                     }
                 }
             }
@@ -294,10 +306,26 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** 从主界面打开的目标：小程序或主题设置（共享同一预测性返回通道）。 */
-private sealed interface OpenTarget {
-    data class App(val entry: AppEntry) : OpenTarget
-    data object ThemeSettings : OpenTarget
+/**
+ * 应用内导航目标：任意层级共用同一个返回栈。
+ *
+ * key 用于 SaveableStateHolder 保存该层页面的滚动/输入状态，
+ * 返回上一层后位置不丢。
+ */
+private sealed interface Route {
+    val key: String
+
+    data class App(val id: String) : Route {
+        override val key: String get() = "app:$id"
+    }
+
+    data object ThemeSettings : Route {
+        override val key: String get() = "theme"
+    }
+
+    data class BulletinDetail(val id: String) : Route {
+        override val key: String get() = "bulletin:$id"
+    }
 }
 
 /** 小程序入口（宫格项）。 */
@@ -727,20 +755,6 @@ scrollBehavior = scrollBehavior,
     }
 }
 
-@Composable
-private fun BulletinTab(onBack: () -> Unit) {
-    var opened by remember { mutableStateOf<Bulletin?>(null) }
-    // 系统返回优先处理三级页：详情 → 列表 → 退出小程序
-    androidx.activity.compose.BackHandler(enabled = true) {
-        if (opened != null) opened = null else onBack()
-    }
-    val current = opened
-    if (current == null) {
-        BulletinListScreen(onOpen = { opened = it })
-    } else {
-        BulletinDetailScreen(BulletinMock.detail(current), onBack = { opened = null })
-    }
-}
 
 /** 包一层返回处理：单页小程序用系统返回键回到宫格。 */
 @Composable
