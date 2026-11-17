@@ -13,6 +13,7 @@ private val mockState = FreeClassroomUiState(
 private fun PreviewContent() {
     FreeClassroomContent(
         state = mockState,
+        onRefresh = {},
         onSelectBuilding = {},
         onToggleGroup = {},
         onFloor = {},

@@ -57,6 +57,9 @@ class FreeClassroomViewModel : ViewModel() {
 
     fun selectBuilding(building: Building) = load(building)
 
+    /** 重新查询当前教学楼（顶栏刷新按钮）。 */
+    fun refresh() = load(_state.value.building)
+
     fun toggleGroup(index: Int) = _state.update {
         val set = it.selectedGroups.toMutableSet()
         if (!set.add(index)) set.remove(index)

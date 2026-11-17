@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2025-2026 InstallerX Revived contributors
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package dev.duohuo.nuist.sta.compose.core.theme.material
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.hoverable
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextStyle
@@ -81,11 +88,30 @@ fun ColorSwatchPreview(
         }
     }
 
+    // MD3E 手法：色板选择器不用灰色状态层（indication = null），
+    // hover 轻微放大 / 按下轻微缩小（弹性 spring）表达交互，选中态由对勾承担。
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = when {
+            pressed -> 0.94f
+            hovered -> 1.06f
+            else -> 1f
+        },
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+        ),
+        label = "swatchScale",
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onClick)
+            .hoverable(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
             .padding(vertical = 8.dp),
     ) {
         // Direct rendering based on available state. Crossfade removed.

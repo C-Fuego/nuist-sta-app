@@ -16,11 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -66,6 +68,7 @@ fun FreeClassroomScreen(vm: FreeClassroomViewModel = viewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     FreeClassroomContent(
         state = state,
+        onRefresh = vm::refresh,
         onSelectBuilding = vm::selectBuilding,
         onToggleGroup = vm::toggleGroup,
         onFloor = vm::setFloor,
@@ -77,6 +80,7 @@ fun FreeClassroomScreen(vm: FreeClassroomViewModel = viewModel()) {
 @Composable
 fun FreeClassroomContent(
     state: FreeClassroomUiState,
+    onRefresh: () -> Unit,
     onSelectBuilding: (Building) -> Unit,
     onToggleGroup: (Int) -> Unit,
     onFloor: (Int?) -> Unit,
@@ -90,6 +94,11 @@ fun FreeClassroomContent(
                 title = { Text("空教室") },
                 subtitle = { Text("按教学楼与时段查空闲教室") },
                 navigationIcon = { MiniAppBackButton() },
+                actions = {
+                    IconButton(onClick = onRefresh) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
+                    }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },
@@ -239,7 +248,7 @@ private fun FilterCard(
 @Composable
 private fun FilterChevron(loading: Boolean = false) {
     if (loading) {
-        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+        CircularWavyProgressIndicator(modifier = Modifier.size(18.dp))
     } else {
         Icon(
             Icons.Filled.ChevronRight,

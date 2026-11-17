@@ -88,6 +88,8 @@ fun ThemeSettingsScreen(
     onPbDirChange: (PredictiveBackExitDirection) -> Unit,
     onBack: () -> Unit,
 ) {
+    // 系统返回键关闭本页，而不是退出应用（InstallerX 各子页同样处理）
+    androidx.activity.compose.BackHandler(enabled = true) { onBack() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     var showPaletteDialog by remember { mutableStateOf(false) }

@@ -15,13 +15,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.duohuo.nuist.sta.compose.core.theme.settings.BaseItemContainer
@@ -72,9 +71,9 @@ fun StudentInfoSection(info: StudentInfo) {
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { info.week.toFloat() / info.totalWeeks },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(MaterialTheme.shapes.extraSmall),
+                        modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )
@@ -118,9 +117,9 @@ fun AcademicSection(s: AcademicSummary) {
                         )
                     }
                     Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
+                    LinearWavyProgressIndicator(
                         progress = { s.creditProgress },
-                        modifier = Modifier.fillMaxWidth().height(6.dp).clip(MaterialTheme.shapes.extraSmall),
+                        modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.primary,
                         trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     )

@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.pager.HorizontalPager
@@ -33,9 +35,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
@@ -54,6 +53,11 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.MenuOpen
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MeetingRoom
@@ -63,8 +67,11 @@ import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.WideNavigationRailValue
+import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
@@ -74,7 +81,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -189,11 +195,6 @@ class MainActivity : ComponentActivity() {
                     pbDirName = pbDir.name,
                 )
             }
-            // 任一设置变化后落盘
-            LaunchedEffect(
-                seedColor, paletteStyle, colorSpec, dynamicColor, darkModeIndex, useAmoled, pbAnim, pbDir,
-            ) { persist() }
-
             val dark = when (darkModeIndex) {
                 1 -> false
                 2 -> true
@@ -219,21 +220,21 @@ class MainActivity : ComponentActivity() {
                     ) {
                         dev.duohuo.nuist.sta.compose.core.theme.ThemeSettingsScreen(
                             seedColor = seedColor,
-                            onSeedColorChange = { seedColor = it },
+                            onSeedColorChange = { seedColor = it; persist() },
                             paletteStyle = paletteStyle,
-                            onPaletteStyleChange = { paletteStyle = it },
+                            onPaletteStyleChange = { paletteStyle = it; persist() },
                             colorSpec = colorSpec,
-                            onColorSpecChange = { colorSpec = it },
+                            onColorSpecChange = { colorSpec = it; persist() },
                             darkModeIndex = darkModeIndex,
-                            onDarkModeChange = { darkModeIndex = it },
+                            onDarkModeChange = { darkModeIndex = it; persist() },
                             dynamicColor = dynamicColor,
-                            onDynamicColorChange = { dynamicColor = it },
+                            onDynamicColorChange = { dynamicColor = it; persist() },
                             useAmoled = useAmoled,
-                            onUseAmoledChange = { useAmoled = it },
+                            onUseAmoledChange = { useAmoled = it; persist() },
                             pbAnim = pbAnim,
-                            onPbAnimChange = { pbAnim = it },
+                            onPbAnimChange = { pbAnim = it; persist() },
                             pbDir = pbDir,
-                            onPbDirChange = { pbDir = it },
+                            onPbDirChange = { pbDir = it; persist() },
                             onBack = { showThemeSettings = false },
                         )
                     }
@@ -303,9 +304,9 @@ private fun AppShell(
     }
 
     val destinations = listOf(
-        TabDest("首页", Icons.Filled.Home),
-        TabDest("学习", Icons.Filled.School),
-        TabDest("我的", Icons.Filled.Person),
+        TabDest("首页", Icons.Filled.Home, Icons.Outlined.Home),
+        TabDest("学习", Icons.Filled.School, Icons.Outlined.School),
+        TabDest("我的", Icons.Filled.Person, Icons.Outlined.Person),
     )
     val select: (Int) -> Unit = { idx -> scope.launch { pagerState.animateScrollToPage(idx) } }
     val openApp: (AppEntry) -> Unit = { openedApp = it }
@@ -313,15 +314,44 @@ private fun AppShell(
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         val wide = maxWidth >= 600.dp
         if (wide) {
-            // 宽屏：左侧 WideNavigationRail，内容居中限宽，可横向滑动切页
+            // 宽屏：左侧 WideNavigationRail（可展开，照搬 InstallerX 的 header 展开按钮）
+            val railState = rememberWideNavigationRailState()
             Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-                WideNavigationRail {
+                WideNavigationRail(
+                    state = railState,
+                    header = {
+                        IconButton(
+                            modifier = Modifier.padding(start = 24.dp),
+                            onClick = {
+                                scope.launch {
+                                    if (railState.targetValue == WideNavigationRailValue.Expanded) {
+                                        railState.collapse()
+                                    } else {
+                                        railState.expand()
+                                    }
+                                }
+                            },
+                        ) {
+                            if (railState.targetValue == WideNavigationRailValue.Expanded) {
+                                Icon(Icons.Filled.MenuOpen, contentDescription = "收起导航栏")
+                            } else {
+                                Icon(Icons.Filled.Menu, contentDescription = "展开导航栏")
+                            }
+                        }
+                    },
+                ) {
                     destinations.forEachIndexed { idx, d ->
+                        val selected = pagerState.currentPage == idx
                         WideNavigationRailItem(
-                            railExpanded = false,
-                            selected = pagerState.currentPage == idx,
+                            railExpanded = railState.targetValue == WideNavigationRailValue.Expanded,
+                            selected = selected,
                             onClick = { select(idx) },
-                            icon = { Icon(d.icon, contentDescription = d.label) },
+                            icon = {
+                                Icon(
+                                    if (selected) d.iconFilled else d.iconOutlined,
+                                    contentDescription = d.label,
+                                )
+                            },
                             label = { Text(d.label) },
                         )
                     }
@@ -336,10 +366,16 @@ private fun AppShell(
                 bottomBar = {
                     ShortNavigationBar {
                         destinations.forEachIndexed { idx, d ->
+                            val selected = pagerState.currentPage == idx
                             ShortNavigationBarItem(
-                                selected = pagerState.currentPage == idx,
+                                selected = selected,
                                 onClick = { select(idx) },
-                                icon = { Icon(d.icon, contentDescription = d.label) },
+                                icon = {
+                                    Icon(
+                                        if (selected) d.iconFilled else d.iconOutlined,
+                                        contentDescription = d.label,
+                                    )
+                                },
                                 label = { Text(d.label) },
                             )
                         }
@@ -354,7 +390,7 @@ private fun AppShell(
     }
 }
 
-private data class TabDest(val label: String, val icon: ImageVector)
+private data class TabDest(val label: String, val iconFilled: ImageVector, val iconOutlined: ImageVector)
 
 /** 三页签横向分页：支持左右滑动切换 + 点击导航滚动到对应页。 */
 @Composable
@@ -378,13 +414,19 @@ private fun TabPager(
     }
 }
 
-/** 大屏内容居中限宽：避免卡片/列表在宽屏上拉成超长横条（M3E 规范要求）。 */
+/**
+ * 大屏内容居中限宽：避免卡片/列表在宽屏上拉成超长横条（M3E 规范要求）。
+ *
+ * 自适应限宽：内容宽 = 可用宽度 − 96dp，上限 1200dp——
+ * 手机/平板窄屏不受影响，宽屏两侧只留窄边，不再「缩在中间」。
+ */
 @Composable
 private fun ContentMaxWidth(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (maxWidth > 840.dp) {
+            val contentWidth = (maxWidth - 96.dp).coerceAtMost(1200.dp)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Box(Modifier.width(840.dp).fillMaxHeight()) { content() }
+                Box(Modifier.width(contentWidth).fillMaxHeight()) { content() }
             }
         } else {
             content()
@@ -396,7 +438,6 @@ private fun ContentMaxWidth(modifier: Modifier = Modifier, content: @Composable 
 @Composable
 private fun HomeTab(onOpen: (AppEntry) -> Unit) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
-    val scheme = MaterialTheme.colorScheme
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
@@ -407,40 +448,40 @@ private fun HomeTab(onOpen: (AppEntry) -> Unit) {
             )
         },
     ) { inner ->
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 96.dp),
+        LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            items(appEntries, key = { it.id }) { entry ->
-                AppGridItem(entry) { onOpen(entry) }
+            item { HomeBulletinCard(onOpen = { onOpen(entryById("bulletin")) }) }
+            item { HomeElectricityCard(onOpen = { onOpen(entryById("electricity")) }) }
+            item { HomeTimetableCard(onOpen = { onOpen(entryById("timetable")) }) }
+            item { HomeExamCard() }
+            // 快捷入口：与学习页并排卡同款形态，带「校园导览」分组标题
+            item {
+                Text(
+                    "校园导览",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    // 与 SegmentedColumn 分组标题的节奏一致：上方 16dp、下方 16dp
+                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 16.dp),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                ) {
+                    StudyEntry("空教室", Icons.Filled.MeetingRoom, Modifier.weight(1f)) {
+                        onOpen(entryById("free-classroom"))
+                    }
+                    StudyEntry("校园地图", Icons.Filled.Map, Modifier.weight(1f)) {
+                        onOpen(entryById("map"))
+                    }
+                }
             }
         }
     }
 }
 
-@Composable
-private fun AppGridItem(entry: AppEntry, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = Modifier.clip(MaterialTheme.shapes.medium).clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier.size(56.dp).clip(MaterialTheme.shapes.large)
-                .background(scheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(entry.icon, contentDescription = entry.label, tint = scheme.onPrimaryContainer,
-                modifier = Modifier.size(28.dp))
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(entry.label, style = MaterialTheme.typography.labelLarge, color = scheme.onSurface)
-    }
-}
+private fun entryById(id: String): AppEntry = appEntries.first { it.id == id }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -480,8 +521,8 @@ private fun StudyTab(onOpen: (String) -> Unit) {
 private fun StudyEntry(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(
-        modifier = modifier.height(72.dp).clip(MaterialTheme.shapes.medium)
-            .background(scheme.surfaceContainerLow)
+        modifier = modifier.height(72.dp).clip(MaterialTheme.shapes.large)
+            .background(scheme.surfaceBright)
             .clickable(onClick = onClick).padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -512,8 +553,6 @@ private fun ProfileTab(onOpenThemeSettings: () -> Unit) {
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            StudentInfoSection(StudyMock.student)
-
             SegmentedColumn(title = "账号") {
                 item {
                     BaseWidget(icon = Icons.Filled.Link, title = "统一门户",
