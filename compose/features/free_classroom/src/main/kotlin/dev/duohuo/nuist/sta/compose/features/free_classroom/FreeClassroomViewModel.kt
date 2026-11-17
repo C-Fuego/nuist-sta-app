@@ -1,6 +1,8 @@
 package dev.duohuo.nuist.sta.compose.features.free_classroom
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,16 +51,20 @@ class FreeClassroomViewModel : ViewModel() {
     }
 
     private fun load(building: Building, date: java.time.LocalDate = _state.value.date) {
-        _state.update { it.copy(loading = true) }
-        // mock 的教室占用仍按固定一天生成；日期/星期/周次用真实日历覆盖
-        val info = upcomingDates(1, date).first()
-        val day = FreeClassroomMock.day(building).copy(
-            dateLabel = info.label,
-            weekdayName = info.weekday,
-            week = info.week,
-        )
-        _state.update {
-            it.copy(building = building, date = date, day = day, loading = false)
+        viewModelScope.launch {
+            _state.update { it.copy(loading = true) }
+            // mock 异步：真实接口接入后替换为网络请求
+            kotlinx.coroutines.delay(400)
+            // mock 的教室占用仍按固定一天生成；日期/星期/周次用真实日历覆盖
+            val info = upcomingDates(1, date).first()
+            val day = FreeClassroomMock.day(building).copy(
+                dateLabel = info.label,
+                weekdayName = info.weekday,
+                week = info.week,
+            )
+            _state.update {
+                it.copy(building = building, date = date, day = day, loading = false)
+            }
         }
     }
 

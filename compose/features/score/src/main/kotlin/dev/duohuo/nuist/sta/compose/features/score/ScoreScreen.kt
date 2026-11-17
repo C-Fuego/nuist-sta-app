@@ -84,6 +84,14 @@ scrollBehavior = scrollBehavior,
             )
         },
     ) { inner ->
+        if (state.loading) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxSize().padding(inner),
+            ) {
+                dev.duohuo.nuist.sta.compose.core.theme.ui.LoadingState("正在获取成绩…")
+            }
+            return@Scaffold
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
             contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
