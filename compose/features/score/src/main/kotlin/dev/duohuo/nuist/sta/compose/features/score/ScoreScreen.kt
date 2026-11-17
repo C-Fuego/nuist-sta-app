@@ -100,7 +100,7 @@ scrollBehavior = scrollBehavior,
             item {
                 Text(
                     "课程成绩",
-                    modifier = Modifier.padding(start = 20.dp, top = 4.dp),
+                    modifier = Modifier.padding(start = 16.dp, top = 4.dp),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,

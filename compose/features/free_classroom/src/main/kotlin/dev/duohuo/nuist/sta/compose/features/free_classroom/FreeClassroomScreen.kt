@@ -148,7 +148,7 @@ scrollBehavior = scrollBehavior,
                         items(matches, key = { it.name }) { room ->
                             RoomRow(room = room, groups = day.groups)
                             HorizontalDivider(
-                                modifier = Modifier.padding(start = 20.dp),
+                                modifier = Modifier.padding(start = 16.dp),
                                 color = MaterialTheme.colorScheme.outlineVariant,
                             )
                         }
@@ -325,7 +325,7 @@ private fun PeriodHeader(
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().background(scheme.surfaceContainer)) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -335,7 +335,7 @@ private fun PeriodHeader(
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -369,7 +369,7 @@ private fun PeriodHeader(
 private fun RoomRow(room: Classroom, groups: List<PeriodGroup>) {
     val scheme = MaterialTheme.colorScheme
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
