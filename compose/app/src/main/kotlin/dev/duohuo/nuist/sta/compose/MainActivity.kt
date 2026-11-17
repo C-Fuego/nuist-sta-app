@@ -531,7 +531,8 @@ scrollBehavior = scrollBehavior,
             modifier = Modifier.fillMaxSize().padding(inner),
             // 悬浮底栏净空取 max：底栏高度替代页面固定留白，避免叠加过大
             contentPadding = PaddingValues(
-                bottom = maxOf(24.dp, outerPadding.calculateBottomPadding()),
+                // 底栏净空 + 16dp 呼吸（与「我的」页尾随空隙一致）
+                bottom = maxOf(24.dp, outerPadding.calculateBottomPadding() + 16.dp),
             ),
         ) {
             // 组 1：今日概览（下一节课 / 电费 / 待考）
@@ -597,7 +598,7 @@ scrollBehavior = scrollBehavior,
         }
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
-                .padding(bottom = maxOf(16.dp, outerPadding.calculateBottomPadding())),
+                .padding(bottom = maxOf(24.dp, outerPadding.calculateBottomPadding() + 16.dp)),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val term = StudyMock.terms[termIndex.coerceIn(0, StudyMock.terms.lastIndex)]

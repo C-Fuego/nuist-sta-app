@@ -167,18 +167,21 @@ internal fun scaleBackTransform(
     }
 }
 
-/** Classic 档变换（原文 ClassicActivityClose）：96dp 漂移 + 淡出。 */
+/**
+ * Classic 档变换（原文 ClassicActivityClose）：页面随手势按 96dp 漂移，
+ * 提交阶段淡出。注意静止（p=0）时位移必须为 0，否则页面会常驻偏移。
+ */
 internal fun classicBackTransform(
     progress: Float,
-    widthPx: Float,
+    releasing: Boolean,
     driftPx: Float,
     sign: Float,
 ): BackTransform {
     val p = progress.coerceIn(0f, 1f)
     return BackTransform(
         scale = 1f,
-        translationX = (1f - p) * driftPx * sign,
+        translationX = p * driftPx * sign,
         translationY = 0f,
-        alpha = (1f - p).coerceIn(0f, 1f),
+        alpha = if (releasing) (1f - p).coerceIn(0f, 1f) else 1f,
     )
 }

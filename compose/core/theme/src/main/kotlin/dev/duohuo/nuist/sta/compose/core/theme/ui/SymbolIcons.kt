@@ -86,6 +86,7 @@ private val symbolCodepoints = mapOf(
     "palette" to "\uE3B7",
     "person" to "\uE7FD",
     "place" to "\uE0C8",
+    "push_pin" to "\uF10D",
     "refresh" to "\uE5D5",
     "school" to "\uE80C",
     "score" to "\uE269",

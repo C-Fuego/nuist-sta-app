@@ -121,7 +121,7 @@ fun PredictiveBackPage(
                     )
                     PredictiveBackAnimation.Classic -> classicBackTransform(
                         progress = p,
-                        widthPx = w,
+                        releasing = releasing,
                         driftPx = AospDrift.toPx(),
                         sign = sign,
                     )

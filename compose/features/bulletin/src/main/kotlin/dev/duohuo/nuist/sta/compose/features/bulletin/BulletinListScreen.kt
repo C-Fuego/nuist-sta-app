@@ -123,37 +123,41 @@ scrollBehavior = scrollBehavior,
                     }
                 }
             }
-            if (visible.isEmpty()) {
-                item {
-                    Text(
-                        "没有匹配的公告",
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            // 公告列表：与首页/设置页同构的行式分组（不再用 ElevatedCard）
+            item {
+                SegmentedColumn(title = "公告列表 · ${visible.size} 条") {
+                    visible.forEach { b ->
+                        item {
+                            BaseWidget(
+                                icon = if (b.actions.contains("置顶")) "push_pin" else "campaign",
+                                title = b.title,
+                                titleStyle = MaterialTheme.typography.titleMedium,
+                                description = buildString {
+                                    b.actions.filter { it != "置顶" }.forEach { append(it).append(" · ") }
+                                    if (b.officialCategory.isNotEmpty()) append(b.officialCategory).append(" · ")
+                                    b.topics.take(1).forEach { append(it).append(" · ") }
+                                    append(b.publisher.ifEmpty { "学校信息公告栏" })
+                                    append(" · ")
+                                    append(b.publishedAt)
+                                },
+                                onClick = { onOpen(b) },
+                                trailingContent = {
+                                    SymbolIcon(
+                                        "chevron_right",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
+                                        fontSize = 20.sp,
+                                    )
+                                },
+                            )
+                        }
+                    }
                 }
-            }
-            items(visible, key = { it.id }) { b ->
-                BulletinTile(b, modifier = Modifier.padding(horizontal = 16.dp)) { onOpen(b) }
             }
         }
     }
-
-    if (showTopicDialog) {
-        SingleChoiceDialog(
-            title = "主题",
-            items = BulletinMock.topics,
-            selectedIndex = BulletinMock.topics.indexOf(topic),
-            onDismiss = { showTopicDialog = false },
-            onSelect = { index ->
-                showTopicDialog = false
-                BulletinMock.topics.getOrNull(index)?.let { topic = it }
-            },
-        )
-    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
     TextField(
@@ -178,66 +182,6 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
             unfocusedIndicatorColor = Color.Transparent,
         ),
     )
-}
-
-@Composable
-private fun BulletinTile(b: Bulletin, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    ElevatedCard(
-        modifier = modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.elevatedCardColors(containerColor = scheme.surfaceContainerLow),
-    ) {
-        Column(Modifier.padding(15.dp)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Text(
-                    b.title,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = scheme.onSurface,
-                )
-                Spacer(Modifier.width(8.dp))
-                SymbolIcon("chevron_right",
-                    contentDescription = null,
-                    tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                    fontSize = 20.sp,
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                b.actions.forEach { Tag(it, highlighted = false) }
-                if (b.officialCategory.isNotEmpty()) Tag(b.officialCategory, highlighted = false)
-                b.topics.forEach { Tag(it, highlighted = true) }
-            }
-            Spacer(Modifier.height(10.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SymbolIcon("account_balance",
-                    contentDescription = null,
-                    tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.size(13.dp),
-                    fontSize = 13.sp,
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    b.publisher.ifEmpty { "学校信息公告栏" },
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = scheme.onSurfaceVariant,
-                )
-                Text(
-                    b.publishedAt,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = scheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
 }
 
 @Composable
