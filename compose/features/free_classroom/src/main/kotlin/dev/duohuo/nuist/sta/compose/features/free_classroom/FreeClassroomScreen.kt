@@ -379,33 +379,46 @@ private fun PeriodHeader(
             )
         }
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 "教室",
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(ROOM_INFO_WEIGHT),
                 style = MaterialTheme.typography.labelMedium,
                 color = scheme.onSurfaceVariant,
             )
-            // M3E ButtonGroup：连接式多选时段组（替代手搓 chips）
-            ButtonGroup(
-                overflowIndicator = { menuState ->
-                    ButtonGroupDefaults.OverflowIndicator(menuState)
-                },
-            ) {
+            // 时段列：与教室行格子共用同一权重分配，天然对齐且窄屏不会被折叠
+            Row(Modifier.weight(PERIOD_COLUMNS_WEIGHT)) {
                 day.groups.forEachIndexed { i, g ->
-                    toggleableItem(
-                        checked = selected.contains(i),
-                        onCheckedChange = { onToggleGroup(i) },
-                        label = g.label,
-                    )
+                    val on = selected.contains(i)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 3.dp)
+                            .height(28.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (on) scheme.primary else scheme.surfaceContainerHighest)
+                            .clickable { onToggleGroup(i) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            g.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (on) scheme.onPrimary else scheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }
         HorizontalDivider(color = scheme.outlineVariant)
     }
 }
+
+/** 教室信息列 / 时段列 的宽度权重（表头与数据行共用，保证逐列对齐）。 */
+private const val ROOM_INFO_WEIGHT = 0.42f
+private const val PERIOD_COLUMNS_WEIGHT = 0.58f
 
 // ==================== 教室行 ====================
 
@@ -416,7 +429,7 @@ private fun RoomRow(room: Classroom, groups: List<PeriodGroup>) {
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(ROOM_INFO_WEIGHT)) {
             Text(
                 "${room.zone} 区 · ${room.name}",
                 style = MaterialTheme.typography.bodyLarge,
@@ -428,31 +441,29 @@ private fun RoomRow(room: Classroom, groups: List<PeriodGroup>) {
                 color = scheme.onSurfaceVariant,
             )
         }
-        groups.forEachIndexed { i, _ ->
-            val occupied = room.periods.getOrNull(i)?.occupied ?: false
-            // 空 = 可用（primary 强调）；满 = 占用（弱化的中性色），避免把"满"做成最显眼的色块
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 3.dp)
-                    .width(40.dp)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (occupied) scheme.surfaceContainerHighest
-                        else scheme.primaryContainer,
+        Row(Modifier.weight(PERIOD_COLUMNS_WEIGHT)) {
+            groups.forEachIndexed { i, _ ->
+                val occupied = room.periods.getOrNull(i)?.occupied ?: false
+                // 空 = 可用（primary 强调）；满 = 占用（弱化的中性色）
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 3.dp)
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (occupied) scheme.surfaceContainerHighest
+                            else scheme.primaryContainer,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (occupied) "满" else "空",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (occupied) scheme.onSurfaceVariant.copy(alpha = 0.75f)
+                        else scheme.onPrimaryContainer,
                     )
-                    .then(
-                        if (occupied) Modifier
-                        else Modifier,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    if (occupied) "满" else "空",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (occupied) scheme.onSurfaceVariant.copy(alpha = 0.75f)
-                    else scheme.onPrimaryContainer,
-                )
+                }
             }
         }
     }
