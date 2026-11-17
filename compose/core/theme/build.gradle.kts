@@ -8,7 +8,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 33
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -27,6 +27,10 @@ dependencies {
     implementation(libs.materialIconsCore)
     implementation(libs.materialIconsExtended)
     implementation(libs.miuix.nav)
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.glass)
+    implementation(libs.miuix.material)
+    implementation(libs.miuix.blur)
     implementation(libs.androidx.activity.compose)
 }
 

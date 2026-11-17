@@ -7,8 +7,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 /**
- * 排版（照搬 InstallerX `ui/theme/Type.kt`）。
- * M3 默认值即可，这里显式声明与 InstallerX 保持一致。
+ * 排版（照搬参考实现`ui/theme/Type.kt`）。
+ * M3 默认值即可，这里显式声明与 参考实现 保持一致。
  */
 val Typography = Typography(
     bodyLarge = TextStyle(

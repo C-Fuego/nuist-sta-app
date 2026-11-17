@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2025-2026 InstallerX Revived contributors
+// Copyright (C) 2025-2026 原作作者与贡献者
 //
-// Ported from InstallerX ui/library/FloatingBottomBar.kt — None 模式（纯色胶囊）。
+// 移植自参考实现 ui/library/FloatingBottomBar.kt — None 模式（纯色胶囊）。
 // 剥离了 Miuix 的 LiquidGlass / Blur / 边缘光路径（本仓库不引入 Miuix），
  // 保留：阻尼拖拽切换、滑动指示胶囊、橡皮筋回弹、tab 缩放动效；配色走 M3 colorScheme。
 package dev.duohuo.nuist.sta.compose.ui.library

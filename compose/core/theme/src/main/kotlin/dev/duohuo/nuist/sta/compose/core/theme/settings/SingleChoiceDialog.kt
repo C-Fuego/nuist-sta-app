@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * 通用单选列表弹窗（M3 官方 AlertDialog + RadioButton 形态，与 InstallerX 的
+ * 通用单选列表弹窗（M3 官方 AlertDialog + RadioButton 形态，与 参考实现的
  * `AlertDialog.kt` 风格一致）。
  *
  * 用于各功能页把"点击一行 → 弹出选项列表"的交互统一起来：

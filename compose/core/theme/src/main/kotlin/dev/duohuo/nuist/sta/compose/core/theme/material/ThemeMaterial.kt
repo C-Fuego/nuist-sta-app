@@ -1,7 +1,7 @@
 package dev.duohuo.nuist.sta.compose.core.theme.material
 
 
-/** 调色板样式（原样取自 InstallerX PaletteStyle，去掉 MiuiX 无关项，保留 CMF）。 */
+/** 调色板样式（原样取自 参考实现 PaletteStyle，去掉 MiuiX 无关项，保留 CMF）。 */
 enum class PaletteStyle(val displayName: String) {
     TonalSpot("Tonal Spot"),
     Neutral("Neutral"),
@@ -30,7 +30,7 @@ enum class PaletteStyle(val displayName: String) {
     }
 }
 
-/** 颜色规格（原样取自 InstallerX ThemeColorSpec）。 */
+/** 颜色规格（原样取自 参考实现 ThemeColorSpec）。 */
 enum class ThemeColorSpec(val displayName: String) {
     SPEC_2021("Material 3 (2021)"),
     SPEC_2025("Expressive (2025)"),

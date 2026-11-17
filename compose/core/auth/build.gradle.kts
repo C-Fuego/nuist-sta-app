@@ -5,7 +5,7 @@ plugins {
 android {
     namespace = "dev.duohuo.nuist.sta.compose.core.auth"
     compileSdk = 37
-    defaultConfig { minSdk = 24 }
+    defaultConfig { minSdk = 33 }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21

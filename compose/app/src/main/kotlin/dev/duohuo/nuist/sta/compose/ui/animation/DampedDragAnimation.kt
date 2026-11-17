@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2025-2026 InstallerX Revived contributors
+// Copyright (C) 2025-2026 原作作者与贡献者
 //
 // Portions of this file are derived from weishu/KernelSU
 // (https://github.com/tiann/KernelSU)

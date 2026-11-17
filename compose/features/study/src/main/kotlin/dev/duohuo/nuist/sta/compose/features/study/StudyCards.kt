@@ -30,7 +30,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 /**
  * 学习页卡片（Compose + MD3E）。对应 Flutter 学习页的「学生身份 + 学业进度」。
  *
- * 结构照搬 InstallerX 的分段列表形态：`SegmentedColumn` 分组，
+ * 结构照搬参考实现的分段列表形态：`SegmentedColumn` 分组，
  * 身份行走 [BaseWidget]，进度条/数据格走 [BaseItemContainer] 自定义内容。
  */
 
@@ -46,7 +46,7 @@ fun StudentInfoSection(info: StudentInfo, onSemesterClick: (() -> Unit)? = null)
             )
         }
         // 学期切换：标准 BaseWidget 行（图标 + 学期 + 周次 + 右箭头），
-        // 与 InstallerX 设置页其他行一致，避免把整块进度条当按钮
+        // 与 参考实现 设置页其他行一致，避免把整块进度条当按钮
         item {
             BaseWidget(
                 icon = "calendar_month",

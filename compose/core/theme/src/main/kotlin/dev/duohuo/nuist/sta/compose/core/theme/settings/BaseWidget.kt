@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2023-2026 iamr0s, InstallerX Revived contributors
+// Copyright (C) 2023-2026 原作作者与贡献者
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
 import androidx.compose.foundation.LocalIndication

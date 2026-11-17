@@ -56,7 +56,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SingleChoiceDialog
 /**
  * 空教室页面（Compose + MD3E 版）。对应 Flutter `FreeClassroomPage`。
  *
- * 筛选卡照搬 InstallerX 的 `SegmentedColumn` + `BaseWidget` 分段卡片形态：
+ * 筛选卡照搬参考实现的 `SegmentedColumn` + `BaseWidget` 分段卡片形态：
  * 教学楼 / 区域 / 楼层 / 日期各一行，前三行点开 M3 单选弹窗，
  * 与「我的 → 主题设置」的交互保持一致。
  */

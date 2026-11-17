@@ -1,7 +1,7 @@
 package dev.duohuo.nuist.sta.compose.core.theme
 
 /**
- * 预测性返回动画类型（与 InstallerX 完全一致的五档，代码原样移植）。
+ * 预测性返回动画类型（与参考实现完全一致的五档，代码原样移植）。
  * - [AOSP]：系统 Cross-Activity 风格——缩放 + 贴边 + 淡出。
  * - [Scale]：缩放到 0.85 并以滑动侧为轴心滑出。
  * - [Classic]：经典缩放过渡（缩放 + 遮罩）。
@@ -16,7 +16,7 @@ enum class PredictiveBackAnimation(val label: String) {
     None("无动画"),
 }
 
-/** 页面退场方向（借鉴 InstallerX）。 */
+/** 页面退场方向（借鉴参考实现）。 */
 enum class PredictiveBackExitDirection(val label: String) {
     /** 跟随手势方向（左滑 → 向右退出）。 */
     FOLLOW_GESTURE("跟随手势"),

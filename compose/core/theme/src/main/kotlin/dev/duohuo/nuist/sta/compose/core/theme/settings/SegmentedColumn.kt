@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2026 InstallerX Revived contributors
+// Copyright (C) 2026 原作作者与贡献者
 @file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
 
 package dev.duohuo.nuist.sta.compose.core.theme.settings

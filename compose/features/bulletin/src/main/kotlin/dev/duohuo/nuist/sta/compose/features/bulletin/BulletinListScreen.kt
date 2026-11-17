@@ -57,7 +57,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SingleChoiceDialog
 /**
  * 信息公告列表页（Compose + MD3E）。对应 Flutter `BulletinPage`。
  *
- * 主题筛选照搬 InstallerX 的 `SegmentedColumn` + `BaseWidget` 分段卡片形态，
+ * 主题筛选照搬参考实现的 `SegmentedColumn` + `BaseWidget` 分段卡片形态，
  * 点击弹 M3 单选窗；搜索框是可用状态，按标题/发布单位/主题实时过滤。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)

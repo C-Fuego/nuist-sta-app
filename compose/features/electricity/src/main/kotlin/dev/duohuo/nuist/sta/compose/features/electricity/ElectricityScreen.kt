@@ -97,7 +97,7 @@ scrollBehavior = scrollBehavior,
                 .verticalScroll(rememberScrollState())
                 .padding(top = 12.dp, bottom = 24.dp),
         ) {
-            // 组 1：当前余额（数字指标行 + 更换宿舍行，统一 InstallerX 卡型）
+            // 组 1：当前余额（数字指标行 + 更换宿舍行，统一 参考实现 卡型）
             dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn(title = "宿舍电费") {
                 item {
                     dev.duohuo.nuist.sta.compose.core.theme.settings.BaseItemContainer {

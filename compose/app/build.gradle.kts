@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "dev.duohuo.nuist_sta_app.compose"
-        minSdk = 24
+        minSdk = 33
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0-compose"
@@ -60,6 +60,10 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.miuix.nav)
+    implementation(libs.miuix.ui)
+    implementation(libs.miuix.glass)
+    implementation(libs.miuix.material)
+    implementation(libs.miuix.blur)
 }
 
 // Miuix（及其依赖）以 JVM 21 字节码发布，本模块必须同为目标版本才能内联其 inline 函数

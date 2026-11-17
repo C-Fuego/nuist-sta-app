@@ -58,7 +58,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 import dev.duohuo.nuist.sta.compose.core.theme.settings.SwitchWidget
 
 /**
- * 独立主题设置页——**结构逐段照搬 InstallerX ThemeSettingsPage**，仅把
+ * 独立主题设置页——**结构逐段照搬参考实现ThemeSettingsPage**，仅把
  * ViewModel 换成回调、R.string 换成中文、AppIcons 换成 Material Icons、去掉 blur/backdrop。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -175,7 +175,7 @@ fun ThemeSettingsScreen(
                         )
                     }
                     item {
-                        // 照搬 InstallerX ColorSpecSelector：行内下拉菜单，非弹窗
+                        // 照搬参考实现ColorSpecSelector：行内下拉菜单，非弹窗
                         val availableSpecs = paletteStyle.supportedSpecs
                         val activeSpec = paletteStyle.effectiveSpec(colorSpec)
                         dev.duohuo.nuist.sta.compose.core.theme.settings.DropDownMenuWidget(
@@ -226,7 +226,7 @@ fun ThemeSettingsScreen(
 
             // --- Group 3: 主题配色（手动选色，非动态颜色时显示，带弹出动画）---
             item {
-                // 照搬 InstallerX ThemeSettingsPage 的 Group 3 动画参数
+                // 照搬参考实现ThemeSettingsPage 的 Group 3 动画参数
                 androidx.compose.animation.AnimatedVisibility(
                     visible = !dynamicColor,
                     enter = androidx.compose.animation.fadeIn(
@@ -300,7 +300,7 @@ fun ThemeSettingsScreen(
             }
 
             // --- Group 4: 预测性返回（无 MiuiX 档）---
-            // 原文 InstallerX 用 SDK >= UPSIDE_DOWN_CAKE(34) 门控
+            // 原文 参考实现 用 SDK >= UPSIDE_DOWN_CAKE(34) 门控
             item {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 SegmentedColumn(title = "预测性返回") {
@@ -331,7 +331,7 @@ fun ThemeSettingsScreen(
 
 @Composable
 fun PaletteStyleDialog(currentStyle: PaletteStyle, onDismiss: () -> Unit, onSelect: (PaletteStyle) -> Unit) {
-    // 照搬 InstallerX ThemeSettingsPage.PaletteStyleDialog：直接遍历 entries，
+    // 照搬参考实现ThemeSettingsPage.PaletteStyleDialog：直接遍历 entries，
     // radio + 名称，行距 8dp，内容整列 verticalScroll，底部关闭按钮
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -386,7 +386,7 @@ fun PredictiveBackAnimationDialog(
     onDismiss: () -> Unit,
     onSelect: (PredictiveBackAnimation) -> Unit,
 ) {
-    // 逐字移植 InstallerX PredictiveBackAnimationDialog
+    // 逐字移植 参考实现 PredictiveBackAnimationDialog
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("预测性返回动画") },
@@ -424,7 +424,7 @@ fun PredictiveBackExitDirectionDialog(
     onDismiss: () -> Unit,
     onSelect: (PredictiveBackExitDirection) -> Unit,
 ) {
-    // 逐字移植 InstallerX PredictiveBackExitDirectionDialog
+    // 逐字移植 参考实现 PredictiveBackExitDirectionDialog
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("退场方向") },
@@ -458,7 +458,7 @@ fun PredictiveBackExitDirectionDialog(
 
 @Composable
 fun ThemeModeDialog(currentMode: Int, onDismiss: () -> Unit, onSelect: (Int) -> Unit) {
-    // 逐字移植 InstallerX ThemeModeDialog
+    // 逐字移植 参考实现 ThemeModeDialog
     val modes = listOf("跟随系统主题", "浅色", "深色")
     AlertDialog(
         onDismissRequest = onDismiss,

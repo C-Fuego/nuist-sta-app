@@ -29,7 +29,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.material.ThemeColorSpec
 import dev.duohuo.nuist.sta.compose.core.theme.material.animateAsState
 import dev.duohuo.nuist.sta.compose.core.theme.material.dynamicColorScheme
 
-// 照搬 InstallerX `ui/theme/InstallerTheme.kt` 的 Material 路径（去掉 MiuiX 分支）。
+// 照搬参考实现`ui/theme/InstallerTheme.kt` 的 Material 路径（去掉 MiuiX 分支）。
 private val LocalIsDark = staticCompositionLocalOf { false }
 private val LocalPaletteStyle = staticCompositionLocalOf { PaletteStyle.TonalSpot }
 private val LocalThemeColorSpec = staticCompositionLocalOf { ThemeColorSpec.SPEC_2025 }
@@ -40,7 +40,7 @@ val LocalNuistColorScheme = staticCompositionLocalOf<ColorScheme> {
     error("No ColorScheme provided")
 }
 
-/** 与 InstallerX 的 `InstallerTheme` 对象等价的主题读取入口。 */
+/** 与 参考实现的 `InstallerTheme` 对象等价的主题读取入口。 */
 object NuistTheme {
     val colorScheme: ColorScheme
         @Composable @ReadOnlyComposable
@@ -68,7 +68,7 @@ object NuistTheme {
 }
 
 /**
- * NUIST++ 的 MD3E 主题 —— 照搬 InstallerX `InstallerTheme` 的 Material 路径：
+ * NUIST++ 的 MD3E 主题 —— 照搬参考实现`InstallerTheme` 的 Material 路径：
  *
  * 1. `keyColor`：动态取色且 Android 12+ 时用系统壁纸强调色，否则用用户选的种子色；
  * 2. `dynamicColorScheme(keyColor, isDark, style, colorSpec)` 生成 base scheme；

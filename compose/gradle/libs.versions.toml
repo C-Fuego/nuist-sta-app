@@ -12,7 +12,7 @@ kotlinxSerialization = "1.7.3"
 datastore = "1.1.1"
 securityCrypto = "1.1.0-alpha06"
 materialKolor = "6.0.0"
-miuix = "0.9.4"
+miuix = "0.9.5-beta01"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }

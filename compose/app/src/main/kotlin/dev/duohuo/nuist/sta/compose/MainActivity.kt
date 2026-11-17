@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = dynamicColor,
                 useAmoled = useAmoled,
             ) {
-                // 导航：照搬 InstallerX，改用 Miuix NavDisplay + 其预测性返回转场。
+                // 导航：照搬参考实现，改用 Miuix NavDisplay + 其预测性返回转场。
                 // NavDisplay 自带每层 saveable 状态、预测式返回与圆角/遮罩效果。
                 val backStack: top.yukonga.miuix.kmp.nav.core.NavBackStack = remember {
                     androidx.compose.runtime.mutableStateListOf<top.yukonga.miuix.kmp.nav.core.NavKey>(
@@ -369,7 +369,7 @@ private fun AppShell(
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         val wide = maxWidth >= 840.dp
         if (wide) {
-            // 宽屏：左侧 WideNavigationRail（可展开，照搬 InstallerX 的 header 展开按钮）
+            // 宽屏：左侧 WideNavigationRail（可展开，照搬参考实现的 header 展开按钮）
             val railState = rememberWideNavigationRailState()
             Row(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
                 WideNavigationRail(
@@ -411,7 +411,7 @@ private fun AppShell(
                 }
             }
         } else if (bottomBarFloating) {
-            // 页面底色与 InstallerX 一致：surfaceContainer
+            // 页面底色与参考实现一致：surfaceContainer
             // 紧凑 + 悬浮底栏：内容全尺寸铺满、从胶囊两侧穿过（真悬浮），
             // 底栏作为 overlay 浮在其上（组件为移植的 FloatingBottomBar，None 纯色模式）
             Scaffold(
@@ -454,7 +454,7 @@ private fun AppShell(
             }
             } else {
                 // 紧凑：底部 ShortNavigationBar，可横向滑动切页。
-                // contentWindowInsets 清零（照搬 InstallerX）：状态栏 inset 由内层
+                // contentWindowInsets 清零（照搬参考实现）：状态栏 inset 由内层
                 // 页面自己的顶栏处理，否则双重叠加导致顶部空隙过大
                 Scaffold(
                     contentWindowInsets = WindowInsets(0, 0, 0, 0),

@@ -56,7 +56,7 @@ import dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn
 /**
  * 课程块配色：直接用种子色派生出的 `colorScheme` 容器角色（6 组循环）。
  *
- * 与 InstallerX 一致——它只用 materialkolor 生成 ColorScheme，不手搓色调板；
+ * 与参考实现一致——它只用 materialkolor 生成 ColorScheme，不手搓色调板；
  * 这里也只取 role，保证跟用户选的色板完全一致、不过饱和。
  */
 @Composable
@@ -136,7 +136,7 @@ scrollBehavior = scrollBehavior,
             }
             return@Column
         }
-        // 周次工具栏（照搬 InstallerX 分段形态；切周只改视图状态，mock 数据不变）
+        // 周次工具栏（照搬参考实现分段形态；切周只改视图状态，mock 数据不变）
         SegmentedColumn {
             item {
                 BaseWidget(

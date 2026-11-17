@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// Copyright (C) 2025-2026 InstallerX Revived contributors
+// Copyright (C) 2025-2026 原作作者与贡献者
 package dev.duohuo.nuist.sta.compose.core.theme.material
 
 import androidx.compose.ui.graphics.Color
@@ -7,10 +7,10 @@ import androidx.compose.ui.graphics.Color
 data class RawColor(val key: String, val color: Color, val displayName: String = key)
 
 /**
- * 预设种子色：完整收录 InstallerX 的 18 个配色（[RawColor] 原文颜色值）。
+ * 预设种子色：完整收录 参考实现的 18 个配色（[RawColor] 原文颜色值）。
  *
  * 蓝色提到首位 = 首次运行/无有效存储时的默认种子色；
- * InstallerX 原 "default"（#4A672D 橄榄绿）保留为 `olive`。
+ * 参考实现 原 "default"（#4A672D 橄榄绿）保留为 `olive`。
  */
 val PresetColors = listOf(
     RawColor("blue", Color(0xFF335BBC), "蓝色"),
