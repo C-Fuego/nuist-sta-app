@@ -114,6 +114,19 @@ fun SymbolIcon(
         symbolCodepoints[name] ?: name,
         fontFamily = if (filled) SymbolsFilled else SymbolsOutlined,
         fontSize = fontSize,
+        // 图标字体作为 Text 渲染时，字形墨水区偏离行盒中心（开关 ✓/×、色板
+        // 对勾看起来偏上）。关闭字体额外内边距并裁掉上下行距（Trim.Both），
+        // 让字形在盒子里真正居中。
+        lineHeight = fontSize,
+        style = androidx.compose.ui.text.TextStyle(
+            platformStyle = androidx.compose.ui.text.PlatformTextStyle(
+                includeFontPadding = false,
+            ),
+            lineHeightStyle = androidx.compose.ui.text.style.LineHeightStyle(
+                alignment = androidx.compose.ui.text.style.LineHeightStyle.Alignment.Center,
+                trim = androidx.compose.ui.text.style.LineHeightStyle.Trim.Both,
+            ),
+        ),
         color = tint,
         modifier = if (contentDescription != null) {
             modifier.semantics { this.contentDescription = contentDescription }

@@ -60,9 +60,10 @@ fun PredictiveBackPage(
                     releaseProgress = backEvent.progress.coerceIn(0f, 1f)
                     progress.snapTo(releaseProgress)
                 }
-                // 手势完成：立即返回，不再播放 450ms 提交动画
-                // （页面由 AnimatedContent 瞬时切换，等待动画只会被感知为卡顿）
+                // 手势完成：播放一段短退场动画（180ms）再返回。
+                // 原文是 450ms，等待过久会被感知为卡顿，这里保留手感但压缩时长。
                 releasing = true
+                progress.animateTo(1f, tween(durationMillis = 180))
                 onBack()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 releasing = false
