@@ -33,7 +33,18 @@ private val SymbolsFilled = symbolsFont(1f)
 private val SymbolsOutlined = symbolsFont(0f)
 
 /**
- * 用 Material Symbols 字形渲染一个图标（ligature 名称，如 "home"、"meeting_room"）。
+ * 图标名 → Material Symbols 码位。字体已按实际使用的图标子集化
+ * （15.2MB → 约 10KB，保留 FILL/GRAD/opsz/wght 可变轴），
+ * 因此改为直接渲染码位而不是 ligature。
+ */
+private val symbolCodepoints = mapOf(
+    "home" to "\uE88A",
+    "school" to "\uE80C",
+    "person" to "\uE7FD",
+)
+
+/**
+ * 用 Material Symbols 字形渲染一个图标（名称如 "home"、"school"、"person"）。
  * 颜色默认取 LocalContentColor（导航项等容器会下发）。
  */
 @Composable
@@ -45,7 +56,7 @@ fun SymbolIcon(
     fontSize: TextUnit = 24.sp,
 ) {
     Text(
-        name,
+        symbolCodepoints[name] ?: name,
         fontFamily = if (filled) SymbolsFilled else SymbolsOutlined,
         fontSize = fontSize,
         color = tint,
