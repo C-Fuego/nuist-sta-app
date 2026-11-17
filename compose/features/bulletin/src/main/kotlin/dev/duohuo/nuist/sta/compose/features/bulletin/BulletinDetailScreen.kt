@@ -41,7 +41,6 @@ fun BulletinDetailScreen(detail: BulletinDetail, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("公告详情", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = {
                     Row {

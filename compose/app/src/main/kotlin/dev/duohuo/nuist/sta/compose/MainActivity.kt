@@ -195,7 +195,6 @@ class MainActivity : ComponentActivity() {
                         .valueOf(initial.pbDirName),
                 )
             }
-            var showThemeSettings by remember { mutableStateOf(false) }
 
             fun persist() {
                 dev.duohuo.nuist.sta.compose.core.storage.ThemePrefs.save(
@@ -224,49 +223,90 @@ class MainActivity : ComponentActivity() {
                 dynamicColor = dynamicColor,
                 useAmoled = useAmoled,
             ) {
-                AppShell(
-                    pbAnim = pbAnim,
-                    pbDir = pbDir,
-                    bottomBarFloating = bottomBarFloating,
-                    onOpenThemeSettings = { showThemeSettings = true },
-                )
-                if (showThemeSettings) {
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(spring(dampingRatio = 1f, stiffness = 380f)),
-                        exit = fadeOut(spring(dampingRatio = 1f, stiffness = 480f)),
-                    ) {
-                    androidx.compose.material3.Surface(
-                        color = MaterialTheme.colorScheme.background,
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        dev.duohuo.nuist.sta.compose.core.theme.ThemeSettingsScreen(
-                            seedColor = seedColor,
-                            onSeedColorChange = { seedColor = it; persist() },
-                            paletteStyle = paletteStyle,
-                            onPaletteStyleChange = { paletteStyle = it; persist() },
-                            colorSpec = colorSpec,
-                            onColorSpecChange = { colorSpec = it; persist() },
-                            darkModeIndex = darkModeIndex,
-                            onDarkModeChange = { darkModeIndex = it; persist() },
-                            dynamicColor = dynamicColor,
-                            onDynamicColorChange = { dynamicColor = it; persist() },
-                            useAmoled = useAmoled,
-                            onUseAmoledChange = { useAmoled = it; persist() },
-                            bottomBarFloating = bottomBarFloating,
-                            onBottomBarFloatingChange = { bottomBarFloating = it; persist() },
+                var openedTarget by remember { mutableStateOf<OpenTarget?>(null) }
+                AnimatedContent(
+                    targetState = openedTarget,
+                    transitionSpec = {
+                        if (targetState != null) {
+                            // 与 InstallerX 页面进入一致：纯淡入
+                            fadeIn(spring(dampingRatio = 1f, stiffness = 380f)) togetherWith ExitTransition.None
+                        } else {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        }
+                    },
+                    label = "app-shell",
+                ) { opened ->
+                    if (opened != null) {
+                        // 全屏页面：预测性返回（遵循设置的动画档位）+ 大屏限宽。
+                        dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
+                            animation = pbAnim,
+                            direction = pbDir,
+                            onBack = { openedTarget = null },
+                        ) {
+                            ContentMaxWidth {
+                            androidx.compose.runtime.CompositionLocalProvider(
+                                dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides { openedTarget = null },
+                            ) {
+                                when (opened) {
+                                    is OpenTarget.App -> when (opened.entry.id) {
+                                        "free-classroom" -> FreeClassroomScreen()
+                                        "electricity" -> ElectricityScreen()
+                                        "score" -> ScoreScreen()
+                                        "credits" -> InnovationCreditScreen()
+                                        "labor" -> LaborScoreScreen()
+                                        "bulletin" -> BulletinTab(onBack = { openedTarget = null })
+                                        "timetable" -> TimetableScreen()
+                                        else -> CampusMapScreen()
+                                    }
+                                    OpenTarget.ThemeSettings -> androidx.compose.material3.Surface(
+                                        color = MaterialTheme.colorScheme.surfaceContainer,
+                                        modifier = Modifier.fillMaxSize(),
+                                    ) {
+                                        dev.duohuo.nuist.sta.compose.core.theme.ThemeSettingsScreen(
+                                            seedColor = seedColor,
+                                            onSeedColorChange = { seedColor = it; persist() },
+                                            paletteStyle = paletteStyle,
+                                            onPaletteStyleChange = { paletteStyle = it; persist() },
+                                            colorSpec = colorSpec,
+                                            onColorSpecChange = { colorSpec = it; persist() },
+                                            darkModeIndex = darkModeIndex,
+                                            onDarkModeChange = { darkModeIndex = it; persist() },
+                                            dynamicColor = dynamicColor,
+                                            onDynamicColorChange = { dynamicColor = it; persist() },
+                                            useAmoled = useAmoled,
+                                            onUseAmoledChange = { useAmoled = it; persist() },
+                                            bottomBarFloating = bottomBarFloating,
+                                            onBottomBarFloatingChange = { bottomBarFloating = it; persist() },
+                                            pbAnim = pbAnim,
+                                            onPbAnimChange = { pbAnim = it },
+                                            pbDir = pbDir,
+                                            onPbDirChange = { pbDir = it },
+                                            onBack = { openedTarget = null },
+                                        )
+                                    }
+                                }
+                            }
+                            }
+                        }
+                    } else {
+                        AppShell(
                             pbAnim = pbAnim,
-                            onPbAnimChange = { pbAnim = it; persist() },
                             pbDir = pbDir,
-                            onPbDirChange = { pbDir = it; persist() },
-                            onBack = { showThemeSettings = false },
+                            bottomBarFloating = bottomBarFloating,
+                            onOpen = { openedTarget = OpenTarget.App(it) },
+                            onOpenThemeSettings = { openedTarget = OpenTarget.ThemeSettings },
                         )
-                    }
                     }
                 }
             }
         }
     }
+}
+
+/** 从主界面打开的目标：小程序或主题设置（共享同一预测性返回通道）。 */
+private sealed interface OpenTarget {
+    data class App(val entry: AppEntry) : OpenTarget
+    data object ThemeSettings : OpenTarget
 }
 
 /** 小程序入口（宫格项）。 */
@@ -289,64 +329,18 @@ private fun AppShell(
     pbAnim: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation,
     pbDir: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection,
     bottomBarFloating: Boolean,
+    onOpen: (AppEntry) -> Unit,
     onOpenThemeSettings: () -> Unit,
 ) {
-    var openedApp by remember { mutableStateOf<AppEntry?>(null) }
     val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState(initialPage = 0) { 3 }
 
-    // 主界面 ↔ 全屏小程序：进入自下而上滑入+淡入（M3E spring）；
-    // 退出动画由 PredictiveBackPage 的预测性返回手势承担，此处瞬时切换。
-    AnimatedContent(
-        targetState = openedApp,
-        transitionSpec = {
-            if (targetState != null) {
-                // 与 InstallerX 页面进入一致：纯淡入
-                fadeIn(spring(dampingRatio = 1f, stiffness = 380f)) togetherWith ExitTransition.None
-            } else {
-                EnterTransition.None togetherWith ExitTransition.None
-            }
-        },
-        label = "app-shell",
-    ) { opened ->
-        if (opened != null) {
-            // 全屏小程序：预测性返回 + 大屏限宽。
-            dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackPage(
-                animation = pbAnim,
-                direction = pbDir,
-                onBack = { openedApp = null },
-            ) {
-                ContentMaxWidth {
-                androidx.compose.runtime.CompositionLocalProvider(
-                    dev.duohuo.nuist.sta.compose.core.theme.LocalAppBack provides { openedApp = null },
-                ) {
-                AnimatedContent(
-                    targetState = opened.id,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "app-open",
-                ) { id ->
-                    when (id) {
-                        "free-classroom" -> FreeClassroomScreen()
-                        "electricity" -> ElectricityScreen()
-                        "score" -> ScoreScreen()
-                        "credits" -> InnovationCreditScreen()
-                        "labor" -> LaborScoreScreen()
-                        "bulletin" -> BulletinTab(onBack = { openedApp = null })
-                        "timetable" -> TimetableScreen()
-                        else -> CampusMapScreen()
-                    }
-                }
-                }
-                }
-            }
-        } else {
-            val destinations = listOf(
+    val destinations = listOf(
         TabDest("首页", "home"),
         TabDest("学习", "school"),
         TabDest("我的", "person"),
     )
     val select: (Int) -> Unit = { idx -> scope.launch { pagerState.animateScrollToPage(idx) } }
-    val openApp: (AppEntry) -> Unit = { openedApp = it }
 
     BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         val wide = maxWidth >= 840.dp
@@ -389,7 +383,7 @@ private fun AppShell(
                     }
                 }
                 ContentMaxWidth(Modifier.weight(1f)) {
-                    TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
+                    TabPager(pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings)
                 }
             }
         } else if (bottomBarFloating) {
@@ -430,7 +424,7 @@ private fun AppShell(
                 },
             ) { inner ->
                 TabPager(
-                    pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings,
+                    pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings,
                     outerPadding = inner,
                 )
             }
@@ -455,15 +449,12 @@ private fun AppShell(
                     },
                 ) { inner ->
                     Box(Modifier.fillMaxSize().padding(inner)) {
-                        TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
+                        TabPager(pagerState, onOpen, pbAnim, pbDir, onOpenThemeSettings)
                     }
                 }
             }
         }
     }
-}
-
-}
 
 private data class TabDest(val label: String, val symbol: String)
 
@@ -502,8 +493,14 @@ private fun TabPager(
  * 手机/平板窄屏不受影响，宽屏两侧只留窄边，不再「缩在中间」。
  */
 @Composable
-private fun ContentMaxWidth(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+private fun ContentMaxWidth(
+    modifier: Modifier = Modifier,
+    background: Color? = MaterialTheme.colorScheme.background,
+    content: @Composable () -> Unit,
+) {
+    BoxWithConstraints(modifier.fillMaxSize().let { m ->
+        if (background != null) m.background(background) else m
+    }) {
         if (maxWidth > 840.dp) {
             val contentWidth = (maxWidth - 96.dp).coerceAtMost(1200.dp)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -524,7 +521,6 @@ private fun HomeTab(onOpen: (AppEntry) -> Unit, outerPadding: PaddingValues = Pa
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("NUIST++", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -583,7 +579,6 @@ private fun StudyTab(onOpen: (String) -> Unit, outerPadding: PaddingValues = Pad
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("学习", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -639,7 +634,6 @@ private fun ProfileTab(onOpenThemeSettings: () -> Unit, outerPadding: PaddingVal
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("我的", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,

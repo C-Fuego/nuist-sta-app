@@ -60,7 +60,6 @@ fun InnovationCreditScreen(credit: InnovationCredit = CreditsMock.innovation) {
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("双创学分", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
                                 colors = TopAppBarDefaults.topAppBarColors(
@@ -112,7 +111,6 @@ fun LaborScoreScreen(r: LaborResult = CreditsMock.labor) {
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("劳动积分", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
                                 colors = TopAppBarDefaults.topAppBarColors(

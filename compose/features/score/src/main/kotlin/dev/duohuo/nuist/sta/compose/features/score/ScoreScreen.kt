@@ -75,7 +75,6 @@ fun ScoreContent(
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("成绩查询", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
                                 colors = TopAppBarDefaults.topAppBarColors(

@@ -88,7 +88,6 @@ fun TimetableScreen() {
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
-                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("课表", modifier = Modifier.padding(start = 12.dp)) },
                 navigationIcon = { MiniAppBackButton() },
                                 colors = TopAppBarDefaults.topAppBarColors(

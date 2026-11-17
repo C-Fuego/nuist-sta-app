@@ -91,8 +91,6 @@ fun ThemeSettingsScreen(
     onPbDirChange: (PredictiveBackExitDirection) -> Unit,
     onBack: () -> Unit,
 ) {
-    // 系统返回键关闭本页，而不是退出应用（InstallerX 各子页同样处理）
-    androidx.activity.compose.BackHandler(enabled = true) { onBack() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
     var showPaletteDialog by remember { mutableStateOf(false) }
@@ -221,9 +219,34 @@ fun ThemeSettingsScreen(
                 }
             }
 
-            // --- Group 3: 主题配色（手动选色，非动态颜色时显示）---
-            if (!dynamicColor) {
-                item {
+            // --- Group 3: 主题配色（手动选色，非动态颜色时显示，带弹出动画）---
+            item {
+                // 照搬 InstallerX ThemeSettingsPage 的 Group 3 动画参数
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !dynamicColor,
+                    enter = androidx.compose.animation.fadeIn(
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 300,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    ) + androidx.compose.animation.expandVertically(
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 400,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    ),
+                    exit = androidx.compose.animation.fadeOut(
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 250,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    ) + androidx.compose.animation.shrinkVertically(
+                        animationSpec = androidx.compose.animation.core.tween(
+                            durationMillis = 350,
+                            easing = androidx.compose.animation.core.FastOutSlowInEasing,
+                        ),
+                    ),
+                ) {
                     SegmentedColumn(title = "主题配色") {
                         item {
                             BaseItemContainer {

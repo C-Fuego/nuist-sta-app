@@ -9,6 +9,10 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.SideEffect
@@ -88,14 +92,28 @@ fun Md3eTheme(
         seedColor
     }
 
-    // 1. Generate the base scheme with spec support
-    val baseColorScheme = remember(keyColor, dark, paletteStyle, colorSpec) {
-        dynamicColorScheme(
-            keyColor = keyColor,
-            isDark = dark,
-            style = paletteStyle,
-            colorSpec = colorSpec,
+    // 1. 配色方案计算较重（HCT 量化），放到后台线程；
+    //    计算完成前沿用上一套 scheme，配合 animateAsState 平滑过渡，避免切换卡顿
+    var baseColorScheme by remember {
+        mutableStateOf(
+            dynamicColorScheme(
+                keyColor = keyColor,
+                isDark = dark,
+                style = paletteStyle,
+                colorSpec = colorSpec,
+            ),
         )
+    }
+    LaunchedEffect(keyColor, dark, paletteStyle, colorSpec) {
+        val target = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            dynamicColorScheme(
+                keyColor = keyColor,
+                isDark = dark,
+                style = paletteStyle,
+                colorSpec = colorSpec,
+            )
+        }
+        baseColorScheme = target
     }
 
     // 仅暗色 + AMOLED 时覆盖纯黑背景
