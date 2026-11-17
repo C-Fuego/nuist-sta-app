@@ -389,29 +389,39 @@ private fun AppShell(
             // 页面底色与 InstallerX 一致：surfaceContainer
             // 紧凑 + 悬浮底栏：内容全尺寸铺满、从胶囊两侧穿过（真悬浮），
             // 底栏作为 overlay 浮在其上（组件为移植的 FloatingBottomBar，None 纯色模式）
-            Box(Modifier.fillMaxSize()) {
-                TabPager(pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings)
-                FloatingBottomBar(
-                    items = destinations,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 12.dp)
-                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
-                    selectedIndex = { pagerState.settledPage },
-                    onSelected = { index -> select(index) },
-                    iconContent = { tab, index, isActiveLayer ->
-                        SymbolIcon(tab.symbol, filled = isActiveLayer)
-                    },
-                    labelContent = { tab, _ ->
-                        Text(
-                            text = tab.label,
-                            fontSize = 11.sp,
-                            lineHeight = 14.sp,
-                            maxLines = 1,
-                            softWrap = false,
-                            overflow = TextOverflow.Visible,
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                bottomBar = {
+                    Box(Modifier.fillMaxWidth()) {
+                        FloatingBottomBar(
+                            items = destinations,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 12.dp)
+                                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                            selectedIndex = { pagerState.settledPage },
+                            onSelected = { index -> select(index) },
+                            iconContent = { tab, index, isActiveLayer ->
+                                SymbolIcon(tab.symbol, filled = isActiveLayer)
+                            },
+                            labelContent = { tab, _ ->
+                                Text(
+                                    text = tab.label,
+                                    fontSize = 11.sp,
+                                    lineHeight = 14.sp,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Visible,
+                                )
+                            },
                         )
-                    },
+                    }
+                },
+            ) { inner ->
+                TabPager(
+                    pagerState, openApp, pbAnim, pbDir, onOpenThemeSettings,
+                    outerPadding = inner,
                 )
             }
             } else {
@@ -516,8 +526,10 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
-            // 追加悬浮底栏净空（参照 InstallerX outerPadding 模式）
-            contentPadding = PaddingValues(bottom = 24.dp + outerPadding.calculateBottomPadding()),
+            // 悬浮底栏净空取 max：底栏高度替代页面固定留白，避免叠加过大
+            contentPadding = PaddingValues(
+                bottom = maxOf(24.dp, outerPadding.calculateBottomPadding()),
+            ),
         ) {
             item { HomeBulletinCard(onOpen = { onOpen(entryById("bulletin")) }) }
             item { HomeElectricityCard(onOpen = { onOpen(entryById("electricity")) }) }
@@ -572,7 +584,7 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp + outerPadding.calculateBottomPadding()),
+                .padding(bottom = maxOf(16.dp, outerPadding.calculateBottomPadding())),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StudentInfoSection(StudyMock.student)
@@ -627,7 +639,7 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp + outerPadding.calculateBottomPadding()),
+                .padding(bottom = maxOf(24.dp, outerPadding.calculateBottomPadding())),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SegmentedColumn(title = "账号") {
