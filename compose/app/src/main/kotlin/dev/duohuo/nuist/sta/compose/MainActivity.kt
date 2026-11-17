@@ -606,33 +606,33 @@ scrollBehavior = scrollBehavior,
                 onSemesterClick = { showTermDialog = true },
             )
             AcademicSection(term.academic)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            ) {
-                StudyEntry("成绩", "analytics", Modifier.weight(1f)) { onOpen("score") }
-                StudyEntry("双创", "lightbulb", Modifier.weight(1f)) { onOpen("credits") }
-                StudyEntry("劳动", "work", Modifier.weight(1f)) { onOpen("labor") }
+            // 常用功能：与首页「校园导览」共用 EntryCard，分组标题节奏一致
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "常用功能",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 32.dp),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                ) {
+                    dev.duohuo.nuist.sta.compose.core.theme.settings.EntryCard(
+                        "analytics", "成绩", Modifier.weight(1f),
+                    ) { onOpen("score") }
+                    dev.duohuo.nuist.sta.compose.core.theme.settings.EntryCard(
+                        "lightbulb", "双创", Modifier.weight(1f),
+                    ) { onOpen("credits") }
+                    dev.duohuo.nuist.sta.compose.core.theme.settings.EntryCard(
+                        "work", "劳动", Modifier.weight(1f),
+                    ) { onOpen("labor") }
+                }
             }
         }
     }
 }
 
-@Composable
-private fun StudyEntry(label: String, icon: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(
-        modifier = modifier.height(72.dp).clip(MaterialTheme.shapes.large)
-            .background(scheme.surfaceBright)
-            .clickable(onClick = onClick).padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        SymbolIcon(icon, contentDescription = label, tint = scheme.primary, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.labelLarge, color = scheme.onSurface)
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

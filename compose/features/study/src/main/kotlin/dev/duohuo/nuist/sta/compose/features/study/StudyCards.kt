@@ -63,17 +63,6 @@ fun StudentInfoSection(info: StudentInfo, onSemesterClick: (() -> Unit)? = null)
                 },
             )
         }
-        item {
-            BaseItemContainer {
-                LinearWavyProgressIndicator(
-                    progress = { info.week.toFloat() / info.totalWeeks },
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                )
-            }
-        }
     }
 }
 
@@ -123,19 +112,13 @@ fun AcademicSection(s: AcademicSummary) {
         }
         item {
             BaseItemContainer {
-                Column(
+                Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Row {
-                        Stat("班级排名", s.classRank, Modifier.weight(1f))
-                        Stat("专业排名", s.majorRank, Modifier.weight(1f))
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                    Row {
-                        Stat("课程通过率", s.passRate, Modifier.weight(1f))
-                        Stat("学分加权平均分", s.weightedAverageScore, Modifier.weight(1f))
-                    }
+                    Stat("班级排名", s.classRank, Modifier.weight(1f))
+                    Stat("专业排名", s.majorRank, Modifier.weight(1f))
+                    Stat("课程通过率", s.passRate, Modifier.weight(1f))
+                    Stat("学分加权平均分", s.weightedAverageScore, Modifier.weight(1f))
                 }
             }
         }

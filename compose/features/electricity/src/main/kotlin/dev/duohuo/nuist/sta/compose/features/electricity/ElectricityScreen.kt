@@ -70,6 +70,7 @@ fun ElectricityContent(
     history: List<ElecReading>,
     onTogglePicker: () -> Unit,
     onRange: (Int) -> Unit,
+    onRefresh: () -> Unit = {},
 ) {
     val scheme = MaterialTheme.colorScheme
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -96,18 +97,67 @@ scrollBehavior = scrollBehavior,
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
         ) {
-            StatusHeader(state)
-            Spacer(Modifier.height(12.dp))
-            dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn {
-                this.item { _ ->
+            // 组 1：当前余额（数字指标行 + 更换宿舍行，统一 InstallerX 卡型）
+            dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn(title = "宿舍电费") {
+                item {
+                    dev.duohuo.nuist.sta.compose.core.theme.settings.BaseItemContainer {
+                        val latest = state.latest
+                        val valueColor = when {
+                            state.isOverdue -> scheme.error
+                            state.isLow -> scheme.tertiary
+                            else -> scheme.onSurface
+                        }
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        if (latest == null) "--" else formatKwh(latest.kwh),
+                                        style = MaterialTheme.typography.headlineMediumEmphasized,
+                                        color = valueColor,
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        "度",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = scheme.onSurfaceVariant,
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    state.room?.displayName ?: "未绑定宿舍",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    latest?.let { "更新于 11月16日 13:40" } ?: "尚未查询",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(onClick = onRefresh) {
+                                SymbolIcon(
+                                    "refresh",
+                                    contentDescription = "刷新",
+                                    tint = scheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
                     dev.duohuo.nuist.sta.compose.core.theme.settings.BaseWidget(
                         icon = "home",
                         title = if (state.room == null) "绑定宿舍" else "更换宿舍",
                         description = "从区域、楼栋、房间列表中选择",
                         onClick = onTogglePicker,
-                    ) {
-                        _ -> Text("⌄", color = scheme.onSurfaceVariant)
-                    }
+                        trailingContent = { SymbolIcon("expand_more", tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) },
+                    )
                 }
             }
             if (state.pickerOpen) {
@@ -118,114 +168,30 @@ scrollBehavior = scrollBehavior,
                     color = scheme.onSurfaceVariant,
                 )
             }
+            // 组 2：历史电量（范围切换 + 折线，同一卡型）
             if (state.room != null) {
                 Spacer(Modifier.height(12.dp))
-                AppCard {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "历史电量",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = scheme.onSurface,
-                            )
-                            Spacer(Modifier.weight(1f))
-                            RangeSelector(state.rangeDays, onRange)
+                dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn(title = "历史电量") {
+                    item {
+                        dev.duohuo.nuist.sta.compose.core.theme.settings.BaseItemContainer {
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "近 ${state.rangeDays} 天",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = scheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    RangeSelector(state.rangeDays, onRange)
+                                }
+                                Spacer(Modifier.height(12.dp))
+                                HistoryChart(history, scheme.primary)
+                            }
                         }
-                        Spacer(Modifier.height(12.dp))
-                        HistoryChart(history, MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StatusHeader(state: ElectricityUiState) {
-    val scheme = MaterialTheme.colorScheme
-    val latest = state.latest
-    // 全部取自种子色派生的 colorScheme：欠费=error，低电量=tertiary，正常=onSurface
-    val valueColor = when {
-        state.isOverdue -> scheme.error
-        state.isLow -> scheme.tertiary
-        else -> scheme.onSurface
-    }
-    AppCard {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        when {
-                            state.isOverdue -> scheme.errorContainer
-                            state.isLow -> scheme.tertiaryContainer
-                            else -> scheme.primaryContainer
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                SymbolIcon("bolt",
-                    contentDescription = null,
-                    tint = when {
-                        state.isOverdue -> scheme.onErrorContainer
-                        state.isLow -> scheme.onTertiaryContainer
-                        else -> scheme.onPrimaryContainer
-                    },
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        if (latest == null) "--" else formatKwh(latest.kwh),
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = valueColor,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("度", fontSize = 13.sp, color = scheme.onSurfaceVariant)
-                }
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    state.room?.displayName ?: "未绑定宿舍",
-                    fontSize = 13.sp,
-                    color = scheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    latest?.let { "更新于 11月16日 13:40" } ?: "尚未查询",
-                    fontSize = 11.sp,
-                    color = scheme.onSurfaceVariant,
-                )
-                if (state.isLow && !state.isOverdue) {
-                    Spacer(Modifier.height(4.dp))
-                    Text("电量不足，请及时充值", fontSize = 11.sp, color = scheme.tertiary)
-                }
-            }
-            IconButton(onClick = {}) {
-                SymbolIcon("refresh", contentDescription = "刷新", tint = scheme.primary)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActionRow(label: String, hint: String, expanded: Boolean, onTap: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        modifier = Modifier.fillMaxWidth().height(56.dp).clickable(onClick = onTap).padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SymbolIcon("home", contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = scheme.onSurface)
-            Text(hint, fontSize = 11.sp, color = scheme.onSurfaceVariant)
-        }
-        SymbolIcon(if (expanded) "expand_less" else "chevron_right", contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -258,8 +224,6 @@ private fun RangeSelector(value: Int, onChanged: (Int) -> Unit) {
         }
     }
 }
-
-/** 历史电量折线图（Canvas 自绘，替代 fl_chart）。 */
 @Composable
 private fun HistoryChart(readings: List<ElecReading>, lineColor: Color) {
     val scheme = MaterialTheme.colorScheme
@@ -298,18 +262,6 @@ private fun HistoryChart(readings: List<ElecReading>, lineColor: Color) {
         drawPath(path, color = lineColor, style = Stroke(width = 3f))
         // 端点
         pts.forEach { drawCircle(lineColor, radius = 4f, center = it) }
-    }
-}
-
-@Composable
-private fun AppCard(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceContainerLow),
-    ) {
-        Column { content() }
     }
 }
 
