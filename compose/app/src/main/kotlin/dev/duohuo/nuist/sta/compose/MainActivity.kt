@@ -415,8 +415,11 @@ private fun AppShell(
                 )
             }
             } else {
-                // 紧凑：底部 ShortNavigationBar，可横向滑动切页
+                // 紧凑：底部 ShortNavigationBar，可横向滑动切页。
+                // contentWindowInsets 清零（照搬 InstallerX）：状态栏 inset 由内层
+                // 页面自己的顶栏处理，否则双重叠加导致顶部空隙过大
                 Scaffold(
+                    contentWindowInsets = WindowInsets(0, 0, 0, 0),
                     bottomBar = {
                         ShortNavigationBar {
                             destinations.forEachIndexed { idx, d ->
@@ -452,6 +455,7 @@ private fun TabPager(
     pbAnim: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackAnimation,
     pbDir: dev.duohuo.nuist.sta.compose.core.theme.PredictiveBackExitDirection,
     onOpenThemeSettings: () -> Unit,
+    outerPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     HorizontalPager(
         state = pagerState,
@@ -461,9 +465,12 @@ private fun TabPager(
         beyondViewportPageCount = 2,
     ) { page ->
         when (page) {
-            0 -> HomeTab(onOpen = onOpen)
-            1 -> StudyTab(onOpen = { id -> appEntries.find { it.id == id }?.let { onOpen(it) } })
-            else -> ProfileTab(onOpenThemeSettings = onOpenThemeSettings)
+            0 -> HomeTab(onOpen = onOpen, outerPadding = outerPadding)
+            1 -> StudyTab(
+                onOpen = { id -> appEntries.find { it.id == id }?.let { onOpen(it) } },
+                outerPadding = outerPadding,
+            )
+            else -> ProfileTab(onOpenThemeSettings = onOpenThemeSettings, outerPadding = outerPadding)
         }
     }
 }
@@ -490,7 +497,7 @@ private fun ContentMaxWidth(modifier: Modifier = Modifier, content: @Composable 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeTab(onOpen: (AppEntry) -> Unit) {
+private fun HomeTab(onOpen: (AppEntry) -> Unit, outerPadding: PaddingValues = PaddingValues(0.dp)) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -509,7 +516,8 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(inner),
-            contentPadding = PaddingValues(bottom = 24.dp),
+            // 追加悬浮底栏净空（参照 InstallerX outerPadding 模式）
+            contentPadding = PaddingValues(bottom = 24.dp + outerPadding.calculateBottomPadding()),
         ) {
             item { HomeBulletinCard(onOpen = { onOpen(entryById("bulletin")) }) }
             item { HomeElectricityCard(onOpen = { onOpen(entryById("electricity")) }) }
@@ -544,7 +552,7 @@ private fun entryById(id: String): AppEntry = appEntries.first { it.id == id }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StudyTab(onOpen: (String) -> Unit) {
+private fun StudyTab(onOpen: (String) -> Unit, outerPadding: PaddingValues = PaddingValues(0.dp)) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scheme = MaterialTheme.colorScheme
     Scaffold(
@@ -564,7 +572,7 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
-                .padding(bottom = 16.dp),
+                .padding(bottom = 16.dp + outerPadding.calculateBottomPadding()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             StudentInfoSection(StudyMock.student)
@@ -599,7 +607,7 @@ private fun StudyEntry(label: String, icon: ImageVector, modifier: Modifier = Mo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProfileTab(onOpenThemeSettings: () -> Unit) {
+private fun ProfileTab(onOpenThemeSettings: () -> Unit, outerPadding: PaddingValues = PaddingValues(0.dp)) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scheme = MaterialTheme.colorScheme
     Scaffold(
@@ -619,7 +627,7 @@ scrollBehavior = scrollBehavior,
     ) { inner ->
         Column(
             Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState())
-                .padding(bottom = 24.dp),
+                .padding(bottom = 24.dp + outerPadding.calculateBottomPadding()),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             SegmentedColumn(title = "账号") {
