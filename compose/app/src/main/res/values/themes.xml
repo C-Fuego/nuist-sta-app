@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- 影子入口占位主题；真正的 MD3E 主题在 core:theme 的 Compose 层 -->
-    <style name="Theme.NuistStaCompose" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- 影子入口占位主题；真正的 MD3E 主题在 core:theme 的 Compose 层。
+         windowBackground 对齐页面底色（surfaceContainer 近似值），
+         消除进入页面时的白屏闪烁；深色由 values-night 提供深色近似值 -->
+    <style name="Theme.NuistStaCompose" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">#F0F0F5</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
 </resources>

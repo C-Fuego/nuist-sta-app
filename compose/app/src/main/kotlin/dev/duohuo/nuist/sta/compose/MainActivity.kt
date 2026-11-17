@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -230,6 +231,11 @@ class MainActivity : ComponentActivity() {
                     onOpenThemeSettings = { showThemeSettings = true },
                 )
                 if (showThemeSettings) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn(spring(dampingRatio = 1f, stiffness = 380f)),
+                        exit = fadeOut(spring(dampingRatio = 1f, stiffness = 480f)),
+                    ) {
                     androidx.compose.material3.Surface(
                         color = MaterialTheme.colorScheme.background,
                         modifier = Modifier.fillMaxSize(),
@@ -255,6 +261,7 @@ class MainActivity : ComponentActivity() {
                             onPbDirChange = { pbDir = it; persist() },
                             onBack = { showThemeSettings = false },
                         )
+                    }
                     }
                 }
             }
@@ -371,7 +378,7 @@ private fun AppShell(
                     },
                 ) {
                     destinations.forEachIndexed { idx, d ->
-                        val selected = pagerState.currentPage == idx
+                        val selected = pagerState.targetPage == idx
                         WideNavigationRailItem(
                             railExpanded = railState.targetValue == WideNavigationRailValue.Expanded,
                             selected = selected,
@@ -400,10 +407,13 @@ private fun AppShell(
                                 .align(Alignment.BottomCenter)
                                 .padding(bottom = 12.dp)
                                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
-                            selectedIndex = { pagerState.settledPage },
+                            selectedIndex = { pagerState.targetPage },
                             onSelected = { index -> select(index) },
                             iconContent = { tab, index, isActiveLayer ->
-                                SymbolIcon(tab.symbol, filled = isActiveLayer)
+                                SymbolIcon(
+                                    tab.symbol,
+                                    filled = isActiveLayer || index == pagerState.targetPage,
+                                )
                             },
                             labelContent = { tab, _ ->
                                 Text(
@@ -433,7 +443,7 @@ private fun AppShell(
                     bottomBar = {
                         ShortNavigationBar {
                             destinations.forEachIndexed { idx, d ->
-                                val selected = pagerState.currentPage == idx
+                                val selected = pagerState.targetPage == idx
                                 ShortNavigationBarItem(
                                     selected = selected,
                                     onClick = { select(idx) },
@@ -514,6 +524,7 @@ private fun HomeTab(onOpen: (AppEntry) -> Unit, outerPadding: PaddingValues = Pa
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
+                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("NUIST++", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -572,6 +583,7 @@ private fun StudyTab(onOpen: (String) -> Unit, outerPadding: PaddingValues = Pad
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
+                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("学习", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -627,6 +639,7 @@ private fun ProfileTab(onOpenThemeSettings: () -> Unit, outerPadding: PaddingVal
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
+                windowInsets = TopAppBarDefaults.windowInsets.add(WindowInsets(left = 12.dp)),
                 title = { Text("我的", modifier = Modifier.padding(start = 12.dp)) },
                                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
