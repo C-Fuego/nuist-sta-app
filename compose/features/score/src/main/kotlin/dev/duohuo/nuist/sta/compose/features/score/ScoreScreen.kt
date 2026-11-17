@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.score
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -180,7 +181,7 @@ private fun OverviewCard(report: ScoreReport, onRefresh: () -> Unit) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SymbolIcon("analytics", contentDescription = null,
-                    tint = scheme.primary, modifier = Modifier.size(20.dp))
+                    tint = scheme.primary, modifier = Modifier.size(20.dp), fontSize = 20.sp)
                 Spacer(Modifier.width(8.dp))
                 Text("成绩概览", style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold, color = scheme.onSurface)

@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.timetable
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.mutableStateOf
@@ -110,6 +111,7 @@ scrollBehavior = scrollBehavior,
                     name = if (listMode) "calendar_month" else "list",
                     contentDescription = if (listMode) "切换到周视图" else "切换到课程列表",
                     modifier = Modifier.size(22.dp),
+                    fontSize = 22.sp,
                 )
             }
         },
@@ -304,6 +306,7 @@ private fun CourseListView(
                                         "chevron_right",
                                         tint = scheme.onSurfaceVariant,
                                         modifier = Modifier.size(20.dp),
+                                        fontSize = 20.sp,
                                     )
                                 },
                             )

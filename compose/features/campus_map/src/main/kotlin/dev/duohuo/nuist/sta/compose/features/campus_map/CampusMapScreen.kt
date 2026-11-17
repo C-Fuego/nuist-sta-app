@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.campus_map
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -101,6 +102,7 @@ scrollBehavior = scrollBehavior,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.size(32.dp),
+                                        fontSize = 32.sp,
                                     )
                                 }
                                 Spacer(Modifier.height(16.dp))

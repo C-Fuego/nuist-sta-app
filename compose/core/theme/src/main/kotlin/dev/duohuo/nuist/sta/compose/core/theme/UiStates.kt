@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.core.theme
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,7 +50,7 @@ fun EmptyState(
     Box(modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             SymbolIcon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp))
+                modifier = Modifier.size(48.dp), fontSize = 48.sp)
             Spacer(Modifier.height(16.dp))
             Text(
                 title,
@@ -83,7 +84,7 @@ fun ErrorState(
             verticalArrangement = Arrangement.Center,
         ) {
             SymbolIcon("cloud_off", contentDescription = null, tint = danger,
-                modifier = Modifier.size(48.dp))
+                modifier = Modifier.size(48.dp), fontSize = 48.sp)
             Spacer(Modifier.height(16.dp))
             Text(
                 "出错了",

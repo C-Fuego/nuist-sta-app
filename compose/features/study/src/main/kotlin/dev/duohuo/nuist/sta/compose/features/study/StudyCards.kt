@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.study
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ fun StudentInfoSection(info: StudentInfo, onSemesterClick: (() -> Unit)? = null)
                             name = "chevron_right",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(20.dp),
+                            fontSize = 20.sp,
                         )
                     }
                 },

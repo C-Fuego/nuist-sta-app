@@ -472,14 +472,14 @@ private fun TabPager(
 @Composable
 private fun ContentMaxWidth(
     modifier: Modifier = Modifier,
-    background: Color? = MaterialTheme.colorScheme.background,
+    background: Color? = MaterialTheme.colorScheme.surfaceContainer,
     content: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().let { m ->
         if (background != null) m.background(background) else m
     }) {
         if (maxWidth > 840.dp) {
-            val contentWidth = (maxWidth - 96.dp).coerceAtMost(1200.dp)
+            val contentWidth = (maxWidth - 32.dp).coerceAtMost(1600.dp)
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Box(Modifier.width(contentWidth).fillMaxHeight()) { content() }
             }

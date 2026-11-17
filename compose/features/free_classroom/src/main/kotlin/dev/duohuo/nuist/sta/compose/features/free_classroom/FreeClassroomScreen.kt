@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -429,22 +430,28 @@ private fun RoomRow(room: Classroom, groups: List<PeriodGroup>) {
         }
         groups.forEachIndexed { i, _ ->
             val occupied = room.periods.getOrNull(i)?.occupied ?: false
+            // 空 = 可用（primary 强调）；满 = 占用（弱化的中性色），避免把"满"做成最显眼的色块
             Box(
                 modifier = Modifier
-                    .padding(horizontal = 2.dp)
-                    .width(36.dp)
+                    .padding(horizontal = 3.dp)
+                    .width(40.dp)
                     .height(32.dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (occupied) scheme.primaryContainer
-                        else scheme.surfaceContainerHighest,
+                        if (occupied) scheme.surfaceContainerHighest
+                        else scheme.primaryContainer,
+                    )
+                    .then(
+                        if (occupied) Modifier
+                        else Modifier,
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     if (occupied) "满" else "空",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (occupied) scheme.onPrimaryContainer else scheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (occupied) scheme.onSurfaceVariant.copy(alpha = 0.75f)
+                    else scheme.onPrimaryContainer,
                 )
             }
         }

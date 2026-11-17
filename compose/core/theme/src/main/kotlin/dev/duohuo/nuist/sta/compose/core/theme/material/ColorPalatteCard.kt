@@ -4,6 +4,7 @@
 
 package dev.duohuo.nuist.sta.compose.core.theme.material
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -172,6 +173,7 @@ private fun FullSwatchContent(scheme: ColorScheme, isSelected: Boolean) {
                         name = "check",
                         tint = scheme.inversePrimary,
                         modifier = Modifier.size(16.dp),
+                        fontSize = 16.sp,
                     )
                 }
             }
@@ -207,6 +209,7 @@ private fun FallbackSwatchContent(baseColor: Color, isSelected: Boolean) {
                         name = "check",
                         tint = Color.White,
                         modifier = Modifier.size(16.dp),
+                        fontSize = 16.sp,
                     )
                 }
             }

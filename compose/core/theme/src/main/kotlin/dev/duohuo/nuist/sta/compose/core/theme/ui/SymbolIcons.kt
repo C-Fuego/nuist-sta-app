@@ -68,6 +68,7 @@ private val symbolCodepoints = mapOf(
     "event" to "\uE24F",
     "expand_less" to "\uE5CE",
     "expand_more" to "\uE5CF",
+    "fact_check" to "\uF0C5",
     "grid_view" to "\uE9B0",
     "home" to "\uE88A",
     "inbox" to "\uE156",

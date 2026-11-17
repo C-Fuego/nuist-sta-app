@@ -2,6 +2,7 @@
 // Copyright (C) 2023-2026 iamr0s, InstallerX Revived contributors
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -106,7 +107,9 @@ fun SwitchWidget(
             thumbContent = {
                 SymbolIcon(
                     name = if (checked) "check" else "close",
+                    filled = false,
                     modifier = Modifier.size(SwitchDefaults.IconSize),
+                    fontSize = 14.sp,
                 )
             },
             // Use the switch's own touch handling when the left and trailing areas are separate.

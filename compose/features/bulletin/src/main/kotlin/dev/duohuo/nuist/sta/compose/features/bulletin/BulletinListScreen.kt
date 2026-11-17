@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.features.bulletin
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -203,6 +204,7 @@ private fun BulletinTile(b: Bulletin, modifier: Modifier = Modifier, onClick: ()
                     contentDescription = null,
                     tint = scheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp),
+                    fontSize = 20.sp,
                 )
             }
             Spacer(Modifier.height(10.dp))
@@ -217,6 +219,7 @@ private fun BulletinTile(b: Bulletin, modifier: Modifier = Modifier, onClick: ()
                     contentDescription = null,
                     tint = scheme.onSurfaceVariant,
                     modifier = Modifier.size(13.dp),
+                    fontSize = 13.sp,
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(

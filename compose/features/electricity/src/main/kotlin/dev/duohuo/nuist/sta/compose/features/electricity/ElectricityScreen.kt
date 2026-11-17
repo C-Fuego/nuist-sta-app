@@ -145,6 +145,7 @@ scrollBehavior = scrollBehavior,
                                     contentDescription = "刷新",
                                     tint = scheme.primary,
                                     modifier = Modifier.size(22.dp),
+                                    fontSize = 22.sp,
                                 )
                             }
                         }
@@ -156,7 +157,7 @@ scrollBehavior = scrollBehavior,
                         title = if (state.room == null) "绑定宿舍" else "更换宿舍",
                         description = "从区域、楼栋、房间列表中选择",
                         onClick = onTogglePicker,
-                        trailingContent = { SymbolIcon("expand_more", tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp)) },
+                        trailingContent = { SymbolIcon("expand_more", tint = scheme.onSurfaceVariant, modifier = Modifier.size(20.dp), fontSize = 20.sp) },
                     )
                 }
             }

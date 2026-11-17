@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ fun EntryCard(
             name = symbol,
             tint = scheme.primary,
             modifier = Modifier.size(24.dp),
+            fontSize = 24.sp,
         )
         Spacer(Modifier.height(6.dp))
         Text(

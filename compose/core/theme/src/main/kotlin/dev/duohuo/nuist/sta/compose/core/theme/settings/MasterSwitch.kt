@@ -2,6 +2,7 @@
 // Copyright (C) 2026 InstallerX Revived contributors
 package dev.duohuo.nuist.sta.compose.core.theme.settings
 
+import androidx.compose.ui.unit.sp
 import dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.PaddingValues
@@ -85,7 +86,9 @@ fun MasterSwitch(
             thumbContent = {
                 SymbolIcon(
                     name = if (checked) "check" else "close",
+                    filled = false,
                     modifier = Modifier.size(SwitchDefaults.IconSize),
+                    fontSize = 14.sp,
                 )
             },
         )

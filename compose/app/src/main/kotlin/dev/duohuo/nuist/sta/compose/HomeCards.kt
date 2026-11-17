@@ -1,5 +1,6 @@
 package dev.duohuo.nuist.sta.compose
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -66,7 +67,7 @@ internal fun HomeTodaySection(
         }
         item {
             BaseWidget(
-                icon = "event",
+                icon = "fact_check",
                 title = exam.course,
                 description = "${exam.date} ${exam.time} · ${exam.location} · ${exam.seat} 座 · 共 ${HomeExamMock.exams.size} 场",
             )
@@ -121,6 +122,7 @@ private fun Chevron() {
         name = "chevron_right",
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.size(20.dp),
+        fontSize = 20.sp,
     )
 }
 
