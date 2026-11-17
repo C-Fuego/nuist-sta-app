@@ -109,14 +109,19 @@ scrollBehavior = scrollBehavior,
         },
     ) { inner ->
         Column(modifier = Modifier.fillMaxSize().padding(inner)) {
-            FilterCard(
-                state = state,
-                onSelectBuilding = onSelectBuilding,
-                onFloor = onFloor,
-                onZone = onZone,
-                onDate = onDate,
-                onMinSeats = onMinSeats,
-            )
+            var filterSheetOpen by remember { mutableStateOf(false) }
+            FilterBar(state = state, onClick = { filterSheetOpen = true })
+            if (filterSheetOpen) {
+                FilterSheet(
+                    state = state,
+                    onSelectBuilding = onSelectBuilding,
+                    onFloor = onFloor,
+                    onZone = onZone,
+                    onDate = onDate,
+                    onMinSeats = onMinSeats,
+                    onDismiss = { filterSheetOpen = false },
+                )
+            }
 
             val day = state.day
             if (day == null) {
@@ -159,16 +164,55 @@ scrollBehavior = scrollBehavior,
     }
 }
 
-// ==================== 筛选卡（SegmentedColumn + BaseWidget） ====================
+// ==================== 筛选（摘要条 + 底部工作表） ====================
 
+/** 顶部紧凑摘要条：一行概括全部筛选条件，点开底部筛选表。 */
 @Composable
-private fun FilterCard(
+private fun FilterBar(state: FreeClassroomUiState, onClick: () -> Unit) {
+    val day = state.day
+    val title = buildString {
+        append(state.building.name)
+        append(" · ")
+        append(state.zone?.let { "$it 区" } ?: "全部区域")
+        append(" · ")
+        append(state.floor?.let { if (it == 0) "其他楼层" else "$it 层" } ?: "全部楼层")
+    }
+    val desc = buildString {
+        append(day?.let { "${it.dateLabel} ${it.weekdayName}" } ?: "今天")
+        append(" · 第 ")
+        append(day?.week ?: "--")
+        append(" 周 · ")
+        append(if (state.minSeats <= 0) "不限座位" else "≥ ${state.minSeats} 座")
+        if (day != null) {
+            append(" · 空闲 ")
+            append(state.availableCount)
+            append(" 间")
+        }
+    }
+    SegmentedColumn(title = "筛选条件") {
+        item {
+            BaseWidget(
+                icon = "tune",
+                title = title,
+                description = desc,
+                onClick = onClick,
+                trailingContent = { FilterChevron(loading = state.loading) },
+            )
+        }
+    }
+}
+
+/** 底部筛选表：教学楼 / 区域 / 楼层 / 日期 / 座位数（复用原单选弹窗）。 */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterSheet(
     state: FreeClassroomUiState,
     onSelectBuilding: (Building) -> Unit,
     onFloor: (Int?) -> Unit,
     onZone: (String?) -> Unit,
     onDate: (java.time.LocalDate) -> Unit,
     onMinSeats: (Int) -> Unit,
+    onDismiss: () -> Unit,
 ) {
     var showBuildingDialog by remember { mutableStateOf(false) }
     var showZoneDialog by remember { mutableStateOf(false) }
@@ -177,61 +221,60 @@ private fun FilterCard(
     var showSeatsDialog by remember { mutableStateOf(false) }
     val day = state.day
 
-    val buildingSubtitle = when {
-        day != null -> "${day.dateLabel} ${day.weekdayName} · 第${day.week}周 · 已同步"
-        state.loading -> "正在查询…"
-        else -> "点击选择要查询的教学楼"
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        SegmentedColumn(title = "筛选条件") {
+            item {
+                BaseWidget(
+                    icon = "apartment",
+                    title = state.building.name,
+                    description = "教学楼",
+                    onClick = { showBuildingDialog = true },
+                    trailingContent = { FilterChevron() },
+                )
+            }
+            item {
+                BaseWidget(
+                    icon = "grid_view",
+                    title = state.zone?.let { "$it 区" } ?: "全部区域",
+                    description = "区域",
+                    onClick = { showZoneDialog = true },
+                    trailingContent = { FilterChevron() },
+                )
+            }
+            item {
+                BaseWidget(
+                    icon = "layers",
+                    title = state.floor?.let { if (it == 0) "其他楼层" else "$it 层" } ?: "全部楼层",
+                    description = "楼层",
+                    onClick = { showFloorDialog = true },
+                    trailingContent = { FilterChevron() },
+                )
+            }
+            item {
+                BaseWidget(
+                    icon = "calendar_today",
+                    title = day?.dateLabel ?: "今天",
+                    description = day?.let { "${it.weekdayName} · 第${it.week}周" } ?: "同步后显示",
+                    onClick = { showDateDialog = true },
+                    trailingContent = { FilterChevron() },
+                )
+            }
+            item {
+                BaseWidget(
+                    icon = "chair",
+                    title = if (state.minSeats <= 0) "不限座位数" else "≥ ${state.minSeats} 座",
+                    description = "座位数",
+                    onClick = { showSeatsDialog = true },
+                    trailingContent = { FilterChevron() },
+                )
+            }
+        }
+        androidx.compose.foundation.layout.Spacer(Modifier.height(24.dp))
     }
 
-    SegmentedColumn(title = "查询条件") {
-        item {
-            BaseWidget(
-                icon = "apartment",
-                title = state.building.name,
-                description = buildingSubtitle,
-                trailingContent = { FilterChevron(loading = state.loading) },
-                onClick = { showBuildingDialog = true },
-            )
-        }
-        item {
-            BaseWidget(
-                icon = "grid_view",
-                title = state.zone?.let { "$it 区" } ?: "全部区域",
-                description = "区域",
-                trailingContent = { FilterChevron() },
-                onClick = { showZoneDialog = true },
-            )
-        }
-        item {
-            BaseWidget(
-                icon = "layers",
-                title = state.floor?.let { if (it == 0) "其他楼层" else "$it 层" } ?: "全部楼层",
-                description = "楼层",
-                trailingContent = { FilterChevron() },
-                onClick = { showFloorDialog = true },
-            )
-        }
-        item {
-            BaseWidget(
-                icon = "calendar_today",
-                title = day?.dateLabel ?: "今天",
-                description = day?.let { "${it.weekdayName} · 第${it.week}周" } ?: "同步后显示",
-                trailingContent = { FilterChevron() },
-                onClick = { showDateDialog = true },
-            )
-        }
-        item {
-            BaseWidget(
-                icon = "chair",
-                title = if (state.minSeats <= 0) "不限座位数" else "≥ ${state.minSeats} 座",
-                description = "座位数",
-                trailingContent = { FilterChevron() },
-                onClick = { showSeatsDialog = true },
-            )
-        }
-    }
-
-    // ---- 单选弹窗（M3 AlertDialog + RadioButton，和主题设置页同一套） ----
     if (showBuildingDialog) {
         SingleChoiceDialog(
             title = "选择教学楼",
@@ -254,6 +297,19 @@ private fun FilterCard(
             onSelect = { index ->
                 showZoneDialog = false
                 onZone(if (index == 0) null else zones.getOrNull(index - 1))
+            },
+        )
+    }
+    if (showFloorDialog) {
+        val floors = day?.floors.orEmpty()
+        SingleChoiceDialog(
+            title = "楼层",
+            items = listOf("全部楼层") + floors.map { if (it == 0) "其他" else "$it 层" },
+            selectedIndex = if (state.floor == null) 0 else floors.indexOf(state.floor) + 1,
+            onDismiss = { showFloorDialog = false },
+            onSelect = { index ->
+                showFloorDialog = false
+                onFloor(if (index == 0) null else floors.getOrNull(index - 1))
             },
         )
     }
@@ -283,19 +339,6 @@ private fun FilterCard(
             onSelect = { index ->
                 showSeatsDialog = false
                 options.getOrNull(index)?.let(onMinSeats)
-            },
-        )
-    }
-    if (showFloorDialog) {
-        val floors = day?.floors.orEmpty()
-        SingleChoiceDialog(
-            title = "楼层",
-            items = listOf("全部楼层") + floors.map { if (it == 0) "其他" else "$it 层" },
-            selectedIndex = if (state.floor == null) 0 else floors.indexOf(state.floor) + 1,
-            onDismiss = { showFloorDialog = false },
-            onSelect = { index ->
-                showFloorDialog = false
-                onFloor(if (index == 0) null else floors.getOrNull(index - 1))
             },
         )
     }

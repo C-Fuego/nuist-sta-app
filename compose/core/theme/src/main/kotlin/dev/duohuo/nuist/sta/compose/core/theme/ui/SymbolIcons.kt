@@ -76,6 +76,7 @@ private val symbolCodepoints = mapOf(
     "layers" to "\uE53B",
     "lightbulb" to "\uE0F0",
     "link" to "\uE157",
+    "list" to "\uE896",
     "map" to "\uE55B",
     "meeting_room" to "\uEB4F",
     "menu" to "\uE5D2",

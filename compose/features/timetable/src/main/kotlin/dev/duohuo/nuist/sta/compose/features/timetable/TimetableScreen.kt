@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -83,6 +84,8 @@ private val dayNames = listOf("一", "二", "三", "四", "五", "六", "日")
 @Composable
 fun TimetableScreen() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // 视图切换：false=周格网（默认），true=课程列表
+    var listMode by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -98,6 +101,18 @@ fun TimetableScreen() {
 scrollBehavior = scrollBehavior,
             )
         },
+        floatingActionButton = {
+            androidx.compose.material3.ToggleFloatingActionButton(
+                checked = listMode,
+                onCheckedChange = { listMode = it },
+            ) {
+                dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
+                    name = if (listMode) "calendar_month" else "list",
+                    contentDescription = if (listMode) "切换到周视图" else "切换到课程列表",
+                    modifier = Modifier.size(22.dp),
+                )
+            }
+        },
     ) { inner ->
         val scheme = MaterialTheme.colorScheme
         val periodW = 52.dp
@@ -108,6 +123,17 @@ scrollBehavior = scrollBehavior,
         var selectedBlock by remember { mutableStateOf<CourseBlock?>(null) }
 
         Column(Modifier.fillMaxSize().padding(inner)) {
+        if (listMode) {
+            CourseListView(
+                week = week,
+                onDismissRequest = { },
+                onBlockClick = { selectedBlock = it },
+            )
+            selectedBlock?.let { block ->
+                CourseDetailSheet(block = block, week = week, onDismiss = { selectedBlock = null })
+            }
+            return@Column
+        }
         // 周次工具栏（照搬 InstallerX 分段形态；切周只改视图状态，mock 数据不变）
         SegmentedColumn {
             item {
@@ -231,6 +257,61 @@ private fun DetailRow(label: String, value: String) {
             modifier = Modifier.width(64.dp),
         )
         Text(value, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurface)
+    }
+}
+
+/** 课程列表视图（ToggleFAB 切换）：按天分组的行式列表，与设置页同构。 */
+@Composable
+private fun CourseListView(
+    week: Int,
+    onDismissRequest: () -> Unit,
+    onBlockClick: (CourseBlock) -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val days = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+    val blocks = TimetableMock.blocks.sortedWith(compareBy({ it.day }, { it.startNode }))
+    androidx.compose.foundation.lazy.LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item {
+            Text(
+                "第 $week 周 · 共 ${blocks.size} 门课",
+                style = MaterialTheme.typography.titleSmall,
+                color = scheme.primary,
+                modifier = Modifier.padding(start = 16.dp),
+            )
+        }
+        blocks.groupBy { it.day }.toSortedMap().forEach { (day, dayBlocks) ->
+            item {
+                dev.duohuo.nuist.sta.compose.core.theme.settings.SegmentedColumn(title = days[day - 1]) {
+                    dayBlocks.forEach { b ->
+                        item {
+                            dev.duohuo.nuist.sta.compose.core.theme.settings.BaseWidget(
+                                icon = "school",
+                                title = b.name,
+                                description = buildString {
+                                    append("第 ${b.startNode}-${b.endNode} 节")
+                                    if (b.location.isNotEmpty()) append(" · ${b.location}")
+                                    if (b.teacher.isNotEmpty()) append(" · ${b.teacher}")
+                                },
+                                onClick = { onBlockClick(b) },
+                                trailingContent = {
+                                    dev.duohuo.nuist.sta.compose.core.theme.ui.SymbolIcon(
+                                        "chevron_right",
+                                        tint = scheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
