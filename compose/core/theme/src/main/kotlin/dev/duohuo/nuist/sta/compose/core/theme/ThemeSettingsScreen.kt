@@ -184,11 +184,23 @@ fun ThemeSettingsScreen(
                         )
                     }
                     item {
-                        BaseWidget(
+                        // 照搬 InstallerX ColorSpecSelector：行内下拉菜单，非弹窗
+                        val availableSpecs = paletteStyle.supportedSpecs
+                        val activeSpec = paletteStyle.effectiveSpec(colorSpec)
+                        dev.duohuo.nuist.sta.compose.core.theme.settings.DropDownMenuWidget(
                             icon = Icons.Outlined.Contrast,
                             title = "颜色规格",
-                            description = colorSpec.displayName,
-                            onClick = { showSpecDialog = true },
+                            description = if (availableSpecs.size == 1) {
+                                if (activeSpec == ThemeColorSpec.SPEC_2026) "仅 2026" else "仅 2021"
+                            } else {
+                                activeSpec.displayName
+                            },
+                            enabled = availableSpecs.size > 1,
+                            choice = availableSpecs.indexOf(activeSpec).coerceAtLeast(0),
+                            data = availableSpecs.map { it.displayName },
+                            onChoiceChange = { index ->
+                                onColorSpecChange(availableSpecs[index])
+                            },
                         )
                     }
                     item {
@@ -380,12 +392,35 @@ fun PredictiveBackAnimationDialog(
     onDismiss: () -> Unit,
     onSelect: (PredictiveBackAnimation) -> Unit,
 ) {
-    SingleChoiceDialog(
-        title = "预测性返回动画",
-        items = PredictiveBackAnimation.entries.map { it.label },
-        selectedIndex = PredictiveBackAnimation.entries.indexOf(currentAnimation),
-        onDismiss = onDismiss,
-        onSelect = { onSelect(PredictiveBackAnimation.entries[it]) },
+    // 逐字移植 InstallerX PredictiveBackAnimationDialog
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("预测性返回动画") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                PredictiveBackAnimation.entries.forEach { animation ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(animation) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (animation == currentAnimation),
+                            onClick = { onSelect(animation) },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(animation.label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
     )
 }
 
@@ -395,23 +430,70 @@ fun PredictiveBackExitDirectionDialog(
     onDismiss: () -> Unit,
     onSelect: (PredictiveBackExitDirection) -> Unit,
 ) {
-    SingleChoiceDialog(
-        title = "退场方向",
-        items = PredictiveBackExitDirection.entries.map { it.label },
-        selectedIndex = PredictiveBackExitDirection.entries.indexOf(currentDirection),
-        onDismiss = onDismiss,
-        onSelect = { onSelect(PredictiveBackExitDirection.entries[it]) },
+    // 逐字移植 InstallerX PredictiveBackExitDirectionDialog
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("退场方向") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                PredictiveBackExitDirection.entries.forEach { direction ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(direction) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (direction == currentDirection),
+                            onClick = { onSelect(direction) },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(direction.label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
     )
 }
 
 @Composable
 fun ThemeModeDialog(currentMode: Int, onDismiss: () -> Unit, onSelect: (Int) -> Unit) {
-    SingleChoiceDialog(
-        title = "主题模式",
-        items = listOf("跟随系统主题", "浅色", "深色"),
-        selectedIndex = currentMode,
-        onDismiss = onDismiss,
-        onSelect = onSelect,
+    // 逐字移植 InstallerX ThemeModeDialog
+    val modes = listOf("跟随系统主题", "浅色", "深色")
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("主题模式") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                modes.forEachIndexed { index, label ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(index) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (index == currentMode),
+                            onClick = { onSelect(index) },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(label)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
     )
 }
 
