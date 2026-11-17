@@ -1,5 +1,8 @@
 package dev.duohuo.nuist.sta.compose.features.timetable
 
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -105,6 +108,7 @@ scrollBehavior = scrollBehavior,
         val headerH = 44.dp
         var week by rememberSaveable { mutableIntStateOf(TimetableMock.CURRENT_WEEK) }
         val isCurrentWeek = week == TimetableMock.CURRENT_WEEK
+        var selectedBlock by remember { mutableStateOf<CourseBlock?>(null) }
 
         Column(Modifier.fillMaxSize().padding(inner)) {
         // 周次工具栏（照搬 InstallerX 分段形态；切周只改视图状态，mock 数据不变）
@@ -166,10 +170,72 @@ scrollBehavior = scrollBehavior,
             // 右侧 7 天
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 WeekHeader(headerH, highlightToday = isCurrentWeek)
-                WeekBody(cellH, TimetableMock.periodTimes.size)
+                WeekBody(cellH, TimetableMock.periodTimes.size) { selectedBlock = it }
             }
         }
         }
+
+        selectedBlock?.let { block ->
+            CourseDetailSheet(
+                block = block,
+                week = week,
+                onDismiss = { selectedBlock = null },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CourseDetailSheet(block: CourseBlock, week: Int, onDismiss: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val times = TimetableMock.periodTimes
+    val startTime = times.getOrNull(block.startNode - 1)?.first ?: ""
+    val endTime = times.getOrNull(block.endNode - 1)?.second ?: ""
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = scheme.surfaceContainerHigh,
+    ) {
+        Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp)) {
+            Text(
+                block.name,
+                style = MaterialTheme.typography.headlineSmallEmphasized,
+                color = scheme.onSurface,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "第 $week 周 · ${dayNames[block.day - 1]} · 第 ${block.startNode}-${block.endNode} 节",
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.primary,
+            )
+            Spacer(Modifier.height(16.dp))
+            DetailRow("时间", if (startTime.isNotEmpty()) "$startTime – $endTime" else "—")
+            if (block.location.isNotEmpty()) DetailRow("地点", block.location)
+            if (block.teacher.isNotEmpty()) DetailRow("教师", block.teacher)
+            DetailRow("节次", TimetableMock.periodTimes.size.let { "第 ${block.startNode}-${block.endNode} 节 / 共 ${it} 节" })
+            Spacer(Modifier.height(12.dp))
+            androidx.compose.material3.Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("关闭") }
+        }
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String) {
+    val scheme = MaterialTheme.colorScheme
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = scheme.onSurfaceVariant,
+            modifier = Modifier.width(64.dp),
+        )
+        Text(value, style = MaterialTheme.typography.bodyLarge, color = scheme.onSurface)
     }
 }
 
@@ -192,7 +258,7 @@ private fun WeekHeader(height: Dp, highlightToday: Boolean) {
 }
 
 @Composable
-private fun WeekBody(cellH: Dp, nodeCount: Int) {
+private fun WeekBody(cellH: Dp, nodeCount: Int, onBlockClick: (CourseBlock) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val totalH = cellH * nodeCount
     Box(Modifier.fillMaxWidth().height(totalH)) {
@@ -210,12 +276,12 @@ private fun WeekBody(cellH: Dp, nodeCount: Int) {
             }
         }
         // 课程块
-        BoxWithBlocks(cellH)
+        BoxWithBlocks(cellH, onBlockClick)
     }
 }
 
 @Composable
-private fun BoxWithBlocks(cellH: Dp) {
+private fun BoxWithBlocks(cellH: Dp, onBlockClick: (CourseBlock) -> Unit) {
     // 用与 WeekBody 相同的宽度比例给每列定位：这里依靠 BoxWithConstraints 不方便，
     // 直接按「每列 weight」不行（Box 内是绝对定位）——因此用 fillMaxWidth 的横排各占 1/7。
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -233,6 +299,7 @@ private fun BoxWithBlocks(cellH: Dp) {
                     .height(height - 2.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(bg)
+                    .clickable { onBlockClick(b) }
                     .padding(4.dp),
             ) {
                 Column {
