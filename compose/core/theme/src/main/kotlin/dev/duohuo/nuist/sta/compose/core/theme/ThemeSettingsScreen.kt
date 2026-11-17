@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -323,12 +325,36 @@ fun ThemeSettingsScreen(
 
 @Composable
 fun PaletteStyleDialog(currentStyle: PaletteStyle, onDismiss: () -> Unit, onSelect: (PaletteStyle) -> Unit) {
-    SingleChoiceDialog(
-        title = "调色板样式",
-        items = PaletteStyle.entries.map { it.displayName },
-        selectedIndex = PaletteStyle.entries.indexOf(currentStyle),
-        onDismiss = onDismiss,
-        onSelect = { onSelect(PaletteStyle.entries[it]) },
+    // 照搬 InstallerX ThemeSettingsPage.PaletteStyleDialog：直接遍历 entries，
+    // radio + 名称，行距 8dp，内容整列 verticalScroll，底部关闭按钮
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("调色板样式") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                PaletteStyle.entries.forEach { style ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(style) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = (style == currentStyle),
+                            onClick = { onSelect(style) },
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(style.displayName)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
     )
 }
 
