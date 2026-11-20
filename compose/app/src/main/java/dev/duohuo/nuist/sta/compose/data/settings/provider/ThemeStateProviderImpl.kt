@@ -1,0 +1,85 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2025-2026 NUIST++ contributors
+package dev.duohuo.nuist.sta.compose.data.settings.provider
+
+import dev.duohuo.nuist.sta.compose.ui.theme.material.DefaultSeedColor
+
+import android.os.Build
+import androidx.compose.ui.graphics.toArgb
+import com.kieronquinn.monetcompat.core.MonetCompat
+import dev.duohuo.nuist.sta.compose.domain.settings.model.preferences.ThemeState
+import dev.duohuo.nuist.sta.compose.domain.settings.provider.ThemeStateProvider
+import dev.duohuo.nuist.sta.compose.domain.settings.repository.AppSettingsRepository
+import dev.duohuo.nuist.sta.compose.ui.theme.material.PresetColors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.stateIn
+import timber.log.Timber
+
+class ThemeStateProviderImpl(appSettingsRepo: AppSettingsRepository, appScope: CoroutineScope) : ThemeStateProvider {
+    override val themeStateFlow: StateFlow<ThemeState> = combine(
+        appSettingsRepo.preferencesFlow,
+        getWallpaperColorsFlow(),
+    ) { prefs, wallpaperColors ->
+        val manualSeedColor =
+            if (PresetColors.any { it.color.toArgb() == prefs.seedColorInt }) {
+                prefs.seedColorInt
+            } else {
+                DefaultSeedColor.toArgb()
+            }
+        val manualWallpaperSeedColor = prefs.wallpaperSeedColorInt
+
+        val effectiveSeedColor: Int =
+            if (prefs.useDynamicColor && Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                if (!wallpaperColors.isNullOrEmpty()) {
+                    if (wallpaperColors.contains(manualWallpaperSeedColor)) {
+                        manualWallpaperSeedColor
+                    } else {
+                        wallpaperColors[0]
+                    }
+                } else {
+                    manualSeedColor
+                }
+            } else {
+                manualSeedColor
+            }
+
+        ThemeState(
+            isLoaded = true,
+            themeMode = prefs.themeMode,
+            useAmoled = prefs.useAmoled,
+            paletteStyle = prefs.paletteStyle,
+            colorSpec = prefs.colorSpec,
+            useDynamicColor = prefs.useDynamicColor,
+            useAppleFloatingBar = prefs.useAppleFloatingBar,
+            seedColor = effectiveSeedColor,
+            useBlur = prefs.useBlur,
+            predictiveBackAnimation = prefs.predictiveBackAnimation,
+            predictiveBackExitDirection = prefs.predictiveBackExitDirection,
+        )
+    }.stateIn(
+        scope = appScope,
+        started = SharingStarted.Eagerly,
+        initialValue = ThemeState(),
+    )
+
+    private fun getWallpaperColorsFlow(): Flow<List<Int>?> = flow {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            val colors = try {
+                MonetCompat.getInstance().getAvailableWallpaperColors()
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to get Monet colors in ThemeState")
+                null
+            }
+            emit(colors)
+        } else {
+            emit(null)
+        }
+    }.flowOn(Dispatchers.IO)
+}

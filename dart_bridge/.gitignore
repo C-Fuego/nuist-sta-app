@@ -1,0 +1,11 @@
+# Flutter / Dart 构建产物
+.dart_tool/
+.flutter-plugins-dependencies
+build/
+# flutter module 的临时宿主工程（每次 flutter build 都会重新生成）
+.android/
+.ios/
+
+# 本地环境与日志
+*.iml
+*.log

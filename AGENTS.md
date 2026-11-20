@@ -17,6 +17,7 @@ AI 编码代理（Claude Code、Codex、Cursor、Copilot 等）在本仓库工�
 - 动手前必须先读 README、[架构文档](docs/architecture.md) 和要改动的模块，弄清结构再改。
 - 禁止擅自新建文档或脚本。确需临时文件时放在 `.tmp*/`（已被 git 忽略）或系统临时目录，用完删除。
 - 若用户仅给出模糊的指令而未给出明确的设计，禁止无规划地擅自动手改代码。必须先做设计，再与用户确认细节。
+- **只做对齐，不自作扩展**：功能与行为以原项目（仓库根 `lib` 的 Flutter 实现）和 `docs/` 的描述为准。除用户明确要求外，禁止自行新增功能、交互或扩展实现，也不要"顺手"补用户没让做的东西。确需超出范围时，先向用户提出并说明理由，得到同意后再动手。
 - 信息缺失时，向用户报告，禁止按自己猜测的理解动手。
 - 发现文档与代码不一致时，向用户报告，不要自行"修正"。
 - `AGENTS.md`、`CLAUDE.md`、`CONTRIBUTING.md`、`.github/`、`.claude/`、`.codex/` 只在用户要求时修改。
@@ -167,3 +168,29 @@ fix(electricity): 修复只有一条记录时折线图不显示
 - **构建工具链不得安装到工作区以外**：JDK、Gradle、Android SDK、Flutter、Emulator 等一律
   安装在工作区内（`toolchain/` 等），通过环境脚本启用；**禁止向家目录写入任何工具文件、
   缓存或配置**（`~/.gradle`、`~/.android`、`~/.m2`、`~/Android` 等均不允许产生污染）。
+
+## 13. Android / MD3E 任务的技能调用
+
+- 涉及 Android 开发任务时，**必须优先、主动调用工作区技能**，不要凭记忆手写：
+  - `md3e`：Material Design 3 / Material 3 Expressive 的设计系统、主题、组件、
+    动效与取舍——凡是 M3/MD3E 的界面、组件选型、主题配色、形状与排版问题，先读该技能。
+  - `android-cli`：`android` 命令行工具的安装与用法（工程创建、APK 安装、模拟器/设备
+    管理、截图与 UI 检查、SDK 组件、构建产物检查、Compose 预览等）。
+  - `android-ui-automation`：通过 adb 驱动真机/模拟器读屏、点击、滚动、输入并确认结果，
+    UI 验证任务开始前先读。
+- 判定为 M3 / MD3E 项目（Compose + material3 / material3-expressive）时，以上技能为默认
+  动作而非可选项；技能内容与本文冲突时按本文与用户指令优先，并在回复里说明。
+
+## 14. 依赖下载优先走镜像
+
+- 任何依赖获取（Gradle 分发包、Maven/Gradle 依赖、npm/pnpm、Flutter pub、GitHub 文件）
+  **一律优先使用国内镜像**，禁止死等官方源；官方源卡住或 TLS 失败时立即切镜像重试。
+- 已验证可用镜像（按速度优先）：
+  - Gradle 分发包：`https://mirrors.cloud.tencent.com/gradle/`（实测 12.5MB/s），
+    备选 `https://mirrors.huaweicloud.com/gradle/`
+  - Maven / Google Maven：`https://maven.aliyun.com/repository/public`、
+    `https://maven.aliyun.com/repository/google`、`https://maven.aliyun.com/repository/gradle-plugin`
+  - GitHub 原始文件 / release：走 gh-proxy 前缀（见 `github-proxy-download` 技能）
+- Gradle wrapper 的 `distributionUrl` 指向工作区内的本地安装包（`toolchain/dists/*.zip`），
+  避免每次构建重新下载，也避免写入家目录。
+- 镜像仍失败时，向用户报告具体错误（状态码 / TLS / 超时）与已尝试的镜像，不要静默重试。

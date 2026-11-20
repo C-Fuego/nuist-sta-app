@@ -1,20 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 校园服务只需要联网与通知；不做任何设备信息采集、不上报日志、无第三方统计 SDK -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
+    <uses-sdk tools:overrideLibrary="
+        top.yukonga.miuix.kmp.blur
+    " />
 
     <application
+        android:name=".App"
         android:allowBackup="false"
-        android:label="NUIST++"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.NuistStaCompose">
+        android:theme="@style/Theme.Nuist"
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="37">
+
         <activity
-            android:name=".MainActivity"
+            android:name="dev.duohuo.nuist.sta.compose.ui.activity.MainActivity"
             android:exported="true"
-            android:enableOnBackInvokedCallback="true">
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 只接收本应用闹钟的显式广播；不监听开机，避免申请额外权限。 -->
+        <receiver
+            android:name="dev.duohuo.nuist.sta.compose.data.notification.TimetableReminderReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="theme_settings_display">Display</string>
+    <string name="app_name" translatable="false">NUIST++</string>
+    <!---->
+<string name="theme_settings">Theme Settings</string>
+    <string name="theme_settings_use_apple_floating_bar">Enable floating bottom bar</string>
+    <string name="theme_settings_use_apple_floating_bar_desc">Display a floating style navigation bar at the bottom of the screen</string>
+    <string name="theme_settings_use_blur">Enable Blur</string>
+    <string name="theme_settings_use_blur_desc">Enable blur for the app</string>
+    <string name="theme_settings_theme_mode">Theme Mode</string>
+    <string name="theme_settings_theme_mode_desc">Select theme mode</string>
+    <string name="theme_settings_theme_mode_light">Light theme</string>
+    <string name="theme_settings_theme_mode_dark">Dark theme</string>
+    <string name="theme_settings_theme_mode_system">Follow system theme</string>
+    <string name="theme_settings_use_amoled">AMOLED Background</string>
+    <string name="theme_settings_use_amoled_desc">Use a pure black background for settings screens in dark mode</string>
+    <string name="theme_settings_palette_style">Palette Style</string>
+    <string name="theme_settings_palette_style_desc">Select palette style</string>
+    <string name="theme_settings_color_spec">Color Spec</string>
+    <string name="theme_settings_color_spec_only_2021">Current palette style only supports Spec 2021</string>
+    <string name="theme_settings_color_spec_only_2026">Current palette style only supports Spec 2026</string>
+    <string name="theme_settings_dynamic_color">Dynamic Color</string>
+    <string name="theme_settings_dynamic_color_desc">Theme color based on wallpaper</string>
+    <string name="theme_settings_theme_color">Theme Color</string>
+    <string name="color_default">Default</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_red">Red</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_amber">Amber</string>
+    <string name="color_yellow">Yellow</string>
+    <string name="color_lime">Lime</string>
+    <string name="color_green">Green</string>
+    <string name="color_cyan">Cyan</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_light_blue">Light Blue</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_purple">Purple</string>
+    <string name="color_deep_purple">Deep Purple</string>
+    <string name="color_blue_grey">Blue Grey</string>
+    <string name="color_brown">Brown</string>
+    <string name="color_grey">Grey</string>
+    <string name="theme_settings_predictive_back">Predictive Back</string>
+    <string name="theme_settings_predictive_back_animation">Predictive Back Animation</string>
+    <string name="theme_settings_predictive_back_animation_desc">Select the animation effect for predictive back</string>
+    <string name="theme_settings_predictive_back_exit_direction">Exit Direction</string>
+    <string name="theme_settings_predictive_back_exit_direction_desc">Select the exit direction for predictive back</string>
+    <string name="theme_settings_predictive_back_animation_none">None</string>
+    <string name="theme_settings_predictive_back_animation_aosp">AOSP</string>
+    <string name="theme_settings_predictive_back_animation_scale">Scale</string>
+    <string name="theme_settings_predictive_back_animation_ksu_classic">Classic</string>
+    <string name="theme_settings_predictive_back_animation_miuix" translatable="false">Miuix</string>
+    <string name="theme_settings_predictive_back_exit_direction_follow_gesture">Follow Gesture</string>
+    <string name="theme_settings_predictive_back_exit_direction_always_right">Always Right</string>
+    <string name="theme_settings_predictive_back_exit_direction_always_left">Always Left</string>
+    <string name="config_authorizer_global">Global</string>
+    <string name="config_authorizer_none">No Privilege</string>
+    <string name="config_authorizer_root">Root</string>
+    <string name="config_authorizer_shizuku">Shizuku</string>
+    <string name="config_authorizer_dhizuku">Dhizuku</string>
+    <string name="config_authorizer_customize">Custom</string>
+    <string name="close">Close</string>
+    <!--  InstallOptions Start  -->
+<!--  InstallOptions End  -->
+
+    <!-- MultiApkZip Installer -->
+<!-- MultiApkZip End -->
+
+    <!-- MixedModuleApk Installer -->
+<!-- MixedModuleApk End -->
+
+    <!-- SplitNameUtil Start -->
+<!-- SplitNameUtil End -->
+
+</resources>

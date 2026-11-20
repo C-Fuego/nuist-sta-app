@@ -1,0 +1,36 @@
+name: nuist_bridge
+description: "校园网 Dart 核心的桥接包：把参考实现的 Dart 实现原样跑在 Flutter 引擎里，供 Compose 前端调用。"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dio: ^5.11.1
+  cookie_jar: ^4.0.9
+  dio_cookie_manager: ^3.5.0
+  pointycastle: ^4.0.0
+  asn1lib: ^1.6.5
+  flutter_secure_storage: ^11.2.0
+  path_provider: ^2.1.6
+  package_info_plus: ^10.2.2
+  webview_flutter: ^4.14.1
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  module:
+    androidX: true
+    androidPackage: dev.duohuo.nuist_bridge
+    iosBundleIdentifier: dev.duohuo.nuistBridge
+
+dependency_overrides:
+  # 2.3.x 起 path_provider_android 改走 JNI 直调 Android 类，在无界面的 FlutterEngine 里
+  # 因类加载器不同找不到 android.content.Context，退回仍然使用 MethodChannel 的 2.2.x。
+  path_provider_android: 2.2.17

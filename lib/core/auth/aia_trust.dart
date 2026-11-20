@@ -34,19 +34,31 @@ class AiaTrust {
   final Future<Directory?> Function()? resolveCacheDir;
   Future<Directory?>? _cacheDir;
 
-  Future<Directory?> _dir() =>
-      _cacheDir ??= (resolveCacheDir?.call() ?? Future.value(null)).catchError((
-        Object error,
-        StackTrace stackTrace,
-      ) {
-        _log.warning(
-          'cache.directory_failed',
-          error: error,
-          stackTrace: stackTrace,
-          fields: {'outcome': 'memory_fallback', 'stage': 'certificate.cache'},
-        );
-        return null;
-      });
+  Future<Directory?> _dir() async {
+    final cached = _cacheDir;
+    if (cached != null) return cached;
+    final resolver = resolveCacheDir;
+    if (resolver == null) {
+      return _cacheDir = Future<Directory?>.value(null);
+    }
+    // 走 await 而不是 catchError：回调的静态类型是 Future<Directory?>，
+    // 但运行时可能是 _Future<Directory>，在它上面 catchError 返回 null 会触发
+    // 「error handler must return a value of the future's type」。
+    try {
+      final directory = await resolver();
+      final value = Future<Directory?>.value(directory);
+      _cacheDir = value;
+      return await value;
+    } catch (error, stackTrace) {
+      _log.warning(
+        'cache.directory_failed',
+        error: error,
+        stackTrace: stackTrace,
+        fields: {'outcome': 'memory_fallback', 'stage': 'certificate.cache'},
+      );
+      return _cacheDir = Future<Directory?>.value(null);
+    }
+  }
 
   /// 最近一次握手失败时各主机收到的叶子证书。
   final Map<String, Uint8List> _badLeaf = {};

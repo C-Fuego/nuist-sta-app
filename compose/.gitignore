@@ -1,8 +1,38 @@
-# Gradle 构建产物（仓库 AGENTS.md 禁入库）
+# Gradle & Kotlin build directories (anywhere in the project)
 build/
 .gradle/
-local.properties
-*.apk
-*.aab
 .kotlin/
-_preview_out/
+.cxx/
+.externalNativeBuild/
+/captures/
+/docs/superpowers/
+
+# Local configuration & Keystore files
+local.properties
+keystore.properties
+keystore/
+*.jks
+*.keystore
+
+# IntelliJ / Android Studio
+.idea/*
+!.idea/.gitignore
+!.idea/codeStyles/
+!.idea/codeStyles/**
+!.idea/inspectionProfiles/
+!.idea/inspectionProfiles/**
+!.idea/icon.svg
+!.idea/runConfigurations/
+!.idea/runConfigurations/**
+!.idea/vcs.xml
+!.idea/fileTemplates/
+!.idea/fileTemplates/**
+.artifacts/
+
+*.iml
+.DS_Store
+/.agents
+/logs
+
+# baseline profile 产物（由 baselineprofile 模块生成，不随仓库提交）
+**/generated/baselineProfiles/

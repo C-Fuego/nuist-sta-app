@@ -1,0 +1,13 @@
+# Keep Android IPC interfaces
+-keep public interface ** extends android.os.IInterface {*;}
+
+# Keep biometric classes for Android 8.x
+-keep class androidx.biometric.internal.FingerprintManagerCompat$Api* {*;}
+
+# Keep application entry point
+
+# Keep all UI activities
+
+# Uncomment and modify below if Services, Receivers, or Providers are missing in release build
+#-keep class androidx.core.content.FileProvider {*;}
+#-keep interface androidx.core.content.FileProvider$PathStrategy {*;}

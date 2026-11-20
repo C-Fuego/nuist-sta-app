@@ -1,39 +1,89 @@
-// NUIST++ Compose 版（Android 专用）—— 影子入口工程
-// 只服务 Android；不保留 iOS/Web/Desktop target。
 pluginManagement {
+    includeBuild("build-plugins")
     repositories {
-        // 阿里云镜像优先（国内加速），随后退回官方源
-        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        maven { setUrl("https://maven.aliyun.com/repository/public/") }
+        maven { setUrl("https://maven.aliyun.com/repository/google/") }
+        maven { setUrl("https://maven.aliyun.com/repository/gradle-plugin/") }
+        // maven { setUrl("https://repo.huaweicloud.com/repository/maven/") }
+        gradlePluginPortal()
         google()
         mavenCentral()
-        gradlePluginPortal()
+        maven { setUrl("https://jitpack.io") }
+        // maven { setUrl("https://maven.scijava.org/content/repositories/public/") }
+        mavenLocal()
     }
 }
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
+/*includeBuild("D:/code/miuix") {
+    dependencySubstitution {
+        substitute(module("top.yukonga.miuix.kmp:miuix-core-android")).using(project(":miuix-core"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-ui-android")).using(project(":miuix-ui"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-material-android")).using(project(":miuix-material"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-blur-android")).using(project(":miuix-blur"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-preference-android")).using(project(":miuix-preference"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-icons-android")).using(project(":miuix-icons"))
+        substitute(module("top.yukonga.miuix.kmp:miuix-navigation3-ui-android")).using(project(":miuix-nav"))
+    }
+}*/
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/public") }
+        // 无界面 Dart 核心（flutter build aar 产出的本地 maven 仓库）
+        maven { setUrl(rootDir.resolve("../dart_bridge/build/host/outputs/repo").toURI()) }
+        // Flutter 引擎产物（flutter_embedding_* / arm64_v8a_*），走国内镜像
+        maven { setUrl("https://storage.flutter-io.cn/download.flutter.io") }
+        maven { setUrl("https://maven.aliyun.com/repository/public/") }
+        maven { setUrl("https://maven.aliyun.com/repository/google/") }
+        maven { setUrl("https://maven.aliyun.com/repository/gradle-plugin/") }
+        // maven { setUrl("https://repo.huaweicloud.com/repository/maven/") }
         google()
         mavenCentral()
+        maven { setUrl("https://jitpack.io") }
+        // maven { setUrl("https://maven.scijava.org/content/repositories/public/") }
+        // GitHub Packages (compose-miuix-ui/miuix)
+        //
+        // NOTE:
+        // GitHub Packages does NOT support anonymous access.
+        // Even if the repository is public or you are a member of the organization,
+        // authentication is still required to resolve dependencies.
+        //
+        // Required environment variables (recommended):
+        //   - GITHUB_ACTOR : your GitHub username
+        //   - GITHUB_TOKEN : GitHub Actions token, or a PAT classic with `read:packages`
+        //
+        // Alternative:
+        //   - Define `gpr.user` and `gpr.key` in ~/.gradle/gradle.properties (NOT in this repo)
+        //
+        // This configuration is intentionally placed in settings.gradle.kts
+        // to work with RepositoriesMode.FAIL_ON_PROJECT_REPOS.
+        val gprUser = providers.gradleProperty("gpr.user")
+            .orElse(providers.environmentVariable("GITHUB_ACTOR"))
+
+        val gprKey = providers.gradleProperty("gpr.key")
+            .orElse(providers.environmentVariable("GITHUB_TOKEN"))
+
+        maven {
+            name = "GitHubPackagesMiuix"
+            url = uri("https://maven.pkg.github.com/compose-miuix-ui/miuix")
+
+            if (gprUser.isPresent && gprKey.isPresent) {
+                credentials {
+                    username = gprUser.get()
+                    password = gprKey.get()
+                }
+            }
+        }
+
+        mavenLocal()
     }
 }
 
-rootProject.name = "nuist-sta-compose"
-include(":app")
-include(":core:theme")
-include(":core:auth")
-include(":core:network")
-include(":core:logging")
-include(":core:storage")
-include(":features:free_classroom")
-include(":features:electricity")
-include(":features:score")
-include(":features:study")
-include(":features:credits")
-include(":features:bulletin")
-include(":features:timetable")
-include(":features:campus_map")
+rootProject.name = "NUIST++ Compose"
+include(
+    ":app",
+    ":baselineprofile",
+)
