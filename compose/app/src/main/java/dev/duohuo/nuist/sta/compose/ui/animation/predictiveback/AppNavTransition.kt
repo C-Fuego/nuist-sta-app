@@ -7,7 +7,7 @@ import dev.duohuo.nuist.sta.compose.domain.settings.model.preferences.Predictive
 import top.yukonga.miuix.kmp.nav.transition.NavTransition
 import top.yukonga.miuix.kmp.nav.transition.NavTransitions
 
-fun installerNavTransition(animation: PredictiveBackAnimation, exitDirection: PredictiveBackExitDirection): NavTransition = when (animation) {
+fun appNavTransition(animation: PredictiveBackAnimation, exitDirection: PredictiveBackExitDirection): NavTransition = when (animation) {
     PredictiveBackAnimation.None -> NoPredictiveBackTransition
     PredictiveBackAnimation.MIUIX -> NavTransitions.MiuixDefault
     PredictiveBackAnimation.AOSP -> AospNavTransition

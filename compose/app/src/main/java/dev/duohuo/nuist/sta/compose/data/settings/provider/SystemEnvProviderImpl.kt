@@ -54,7 +54,6 @@ class SystemEnvProviderImpl(private val context: Context) : SystemEnvProvider {
         }
     }
 
-    override suspend fun authenticateBiometric(isInstaller: Boolean): Boolean = true
 
     override fun setLauncherAliasEnabled(enabled: Boolean) = Unit
 

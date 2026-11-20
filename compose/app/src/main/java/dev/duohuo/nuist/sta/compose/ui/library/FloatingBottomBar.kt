@@ -70,7 +70,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import androidx.compose.ui.util.lerp
 import dev.duohuo.nuist.sta.compose.ui.animation.DampedDragAnimation
-import dev.duohuo.nuist.sta.compose.ui.theme.InstallerTheme
+import dev.duohuo.nuist.sta.compose.ui.theme.AppTheme
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -198,7 +198,7 @@ fun <T> FloatingBottomBar(
     iconContent: @Composable (item: T, index: Int) -> Unit,
     labelContent: @Composable (item: T, index: Int) -> Unit,
 ) {
-    val isInDark = InstallerTheme.isDark
+    val isInDark = AppTheme.isDark
     val pillShape = remember { CircleShape }
     val isBlurMode = mode == FloatingBottomBarMode.Blur
     val containerColor =

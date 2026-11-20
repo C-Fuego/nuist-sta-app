@@ -12,7 +12,6 @@ interface SystemEnvProvider {
     fun isAdbVerifyEnabledFlow(): Flow<Boolean>
     fun requestIgnoreBatteryOptimization()
 
-    suspend fun authenticateBiometric(isInstaller: Boolean): Boolean
     fun setLauncherAliasEnabled(enabled: Boolean)
     suspend fun getLatestLogUri(): String?
 

@@ -21,7 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.duohuo.nuist.sta.compose.domain.settings.model.preferences.ThemeState
 import dev.duohuo.nuist.sta.compose.domain.settings.provider.ThemeStateProvider
 import dev.duohuo.nuist.sta.compose.ui.navigation.NuistNavContainer
-import dev.duohuo.nuist.sta.compose.ui.theme.InstallerTheme
+import dev.duohuo.nuist.sta.compose.ui.theme.AppTheme
 import dev.duohuo.nuist.sta.compose.ui.theme.LocalWindowLayoutInfo
 import dev.duohuo.nuist.sta.compose.ui.theme.rememberWindowLayoutInfo
 import org.koin.core.component.KoinComponent
@@ -30,7 +30,7 @@ import org.koin.core.component.inject
 /**
  * 应用唯一入口。
  *
- * 与参考实现同构：先等主题状态加载完（splash 保持），再套 [InstallerTheme]，
+ * 先等主题状态加载完（splash 保持），再套 [AppTheme]，
  * 最后交给 [NuistNavContainer] 处理路由；背景由这里的 Box 统一绘制。
  */
 class MainActivity : ComponentActivity(), KoinComponent {
@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
             val layoutInfo = rememberWindowLayoutInfo()
             CompositionLocalProvider(LocalWindowLayoutInfo provides layoutInfo) {
-            InstallerTheme(
+            AppTheme(
                 themeMode = uiState.themeMode,
                 paletteStyle = uiState.paletteStyle,
                 colorSpec = uiState.colorSpec,

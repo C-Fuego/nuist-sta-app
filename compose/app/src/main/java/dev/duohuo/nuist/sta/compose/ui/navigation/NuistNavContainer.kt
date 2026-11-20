@@ -19,7 +19,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.duohuo.nuist.sta.compose.domain.settings.model.preferences.PredictiveBackAnimation
 import dev.duohuo.nuist.sta.compose.domain.settings.model.preferences.ThemeState
-import dev.duohuo.nuist.sta.compose.ui.animation.predictiveback.installerNavTransition
+import dev.duohuo.nuist.sta.compose.ui.animation.predictiveback.appNavTransition
 import dev.duohuo.nuist.sta.compose.ui.activity.TimetableLaunchRouteEffect
 import dev.duohuo.nuist.sta.compose.ui.kit.LocalAppBack
 import dev.duohuo.nuist.sta.compose.ui.page.theme.ThemeSettingsPage
@@ -74,7 +74,7 @@ fun NuistNavContainer(uiState: ThemeState) {
             )
         }
         val transition = remember(uiState.predictiveBackAnimation, uiState.predictiveBackExitDirection) {
-            installerNavTransition(
+            appNavTransition(
                 animation = uiState.predictiveBackAnimation,
                 exitDirection = uiState.predictiveBackExitDirection,
             )

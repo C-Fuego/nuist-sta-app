@@ -38,16 +38,16 @@ private val LocalThemeMode = staticCompositionLocalOf { ThemeMode.SYSTEM }
 private val LocalUseMiuixMonet = staticCompositionLocalOf { false }
 private val LocalUseDynamicColor = staticCompositionLocalOf { false }
 
-val LocalInstallerColorScheme = staticCompositionLocalOf<ColorScheme> { error("No ColorScheme provided") }
+val LocalAppColorScheme = staticCompositionLocalOf<ColorScheme> { error("No ColorScheme provided") }
 
-object InstallerTheme {
+object AppTheme {
     val useMiuixOs4: Boolean
         @Composable @ReadOnlyComposable
         get() = LocalUseMiuixOs4.current
 
     val colorScheme: ColorScheme
         @Composable @ReadOnlyComposable
-        get() = LocalInstallerColorScheme.current
+        get() = LocalAppColorScheme.current
 
     val isDark: Boolean
         @Composable @ReadOnlyComposable
@@ -79,7 +79,7 @@ object InstallerTheme {
 }
 
 @Composable
-fun InstallerTheme(
+fun AppTheme(
     themeMode: ThemeMode,
     paletteStyle: PaletteStyle,
     colorSpec: ThemeColorSpec,
@@ -135,7 +135,7 @@ fun InstallerTheme(
         LocalIsDark provides isDark,
         LocalPaletteStyle provides paletteStyle,
         LocalSeedColor provides seedColor,
-        LocalInstallerColorScheme provides animatedColorScheme,
+        LocalAppColorScheme provides animatedColorScheme,
         LocalThemeMode provides themeMode,
         LocalUseMiuixMonet provides false,
         LocalUseDynamicColor provides useDynamicColor,
@@ -146,7 +146,7 @@ fun InstallerTheme(
             NavigationBarContrastHandler()
         }
 
-        InstallerMaterialExpressiveTheme(
+        MaterialExpressiveAppTheme(
             darkTheme = isDark,
             colorScheme = animatedColorScheme,
         ) {
@@ -157,7 +157,7 @@ fun InstallerTheme(
 
 
 @Composable
-fun InstallerMaterialExpressiveTheme(
+fun MaterialExpressiveAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     colorScheme: ColorScheme,
     compatStatusBarColor: Boolean = true,
