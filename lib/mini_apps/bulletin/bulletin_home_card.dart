@@ -45,7 +45,7 @@ class _BulletinHomeCardState extends State<BulletinHomeCard>
 
   void _refreshIfEnabled() {
     if (_isForeground && _controller.subscription.enabled) {
-      unawaited(_controller.refreshFeed());
+      unawaited(_controller.refreshFeed(automatic: true));
     }
   }
 
@@ -64,7 +64,7 @@ class _BulletinHomeCardState extends State<BulletinHomeCard>
       listenable: controller,
       builder: (context, _) {
         final enabled = controller.subscription.enabled;
-        final feed = controller.feed.take(2).toList();
+        final feed = controller.feed;
         final hideFeed = enabled && controller.feedUnavailable;
         return Container(
           decoration: BoxDecoration(
@@ -95,15 +95,11 @@ class _BulletinHomeCardState extends State<BulletinHomeCard>
                         ),
                       ),
                       const Spacer(),
-                      if (controller.feedLoading)
-                        const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else if (enabled && !hideFeed)
+                      if (enabled &&
+                          !hideFeed &&
+                          (feed.isNotEmpty || !controller.feedLoading))
                         Text(
-                          '${controller.feed.length} 条动态',
+                          '${feed.length} 条动态',
                           style: TextStyle(color: palette.hint, fontSize: 11),
                         ),
                       const SizedBox(width: 5),
@@ -133,7 +129,7 @@ class _BulletinHomeCardState extends State<BulletinHomeCard>
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
-                          enabled ? '暂时没有匹配的新公告' : '开启主题订阅，感兴趣的新公告会显示在这里',
+                          enabled ? '暂时没有匹配的公告' : '开启主题订阅，在这里查看最近匹配的公告',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(color: palette.hint, fontSize: 12),

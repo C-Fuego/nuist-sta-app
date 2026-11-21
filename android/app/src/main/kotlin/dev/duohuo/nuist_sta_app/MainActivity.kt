@@ -14,17 +14,37 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var permissionResult: MethodChannel.Result? = null
     private var permissionRequestInFlight = false
+    private var initialRouteRead = false
+    private var initialRoute: String? = null
+
+    override fun getInitialRoute(): String? {
+        if (initialRouteRead) return initialRoute
+        initialRouteRead = true
+        val route = intent?.getStringExtra(NotifyStore.EXTRA_ROUTE)
+            ?: if (intent?.dataString == NextDayReminder.OPEN_URI) "/apps/timetable?focus=tomorrow" else null
+        // 可信系统入口在 Flutter 第一帧前决定目标；其余 Intent 沿用普通启动。
+        initialRoute = if (route == NotifyStore.ROUTE_TIMETABLE || route == "/apps/timetable?focus=tomorrow") route
+        else super.getInitialRoute()
+        return initialRoute
+    }
 
     override fun onNewIntent(intent: Intent) {
         // Flutter 插件在 super 内分发 Intent；由同一 openRoute 通道处理所有点击，避免双重压栈。
         if (intent.dataString == NextDayReminder.OPEN_URI) {
             intent.putExtra(NotifyStore.EXTRA_ROUTE, "/apps/timetable?focus=tomorrow")
         }
+        // Glance 用内部 URI 区分点击动作；交给提醒插件处理，不能作为 Flutter 深链。
+        if (intent.hasExtra(NotifyStore.EXTRA_ROUTE) && intent.data?.scheme == "glance-action") {
+            intent.data = null
+        }
         super.onNewIntent(intent)
         setIntent(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        if (intent?.hasExtra(NotifyStore.EXTRA_ROUTE) == true && intent?.data?.scheme == "glance-action") {
+            intent.data = null
+        }
         // 旧版 WidgetPin 动态快捷方式覆盖安装后会残留（id=add_timetable_widget，文案「添加小组件」）。
         clearLegacyShortcuts()
         super.configureFlutterEngine(flutterEngine)
@@ -76,21 +96,26 @@ class MainActivity : FlutterActivity() {
                         if (args == null) {
                             result.error("arguments", "缺少明日提醒配置", null)
                         } else {
-                            try {
+                            val context = applicationContext
+                            TimetableNativeWork.reply(result, "schedule", "明日提醒暂不可用", "next_day.update", action = {
                                 val diagnostics = mutableListOf<Map<String, Any?>>()
-                                if (NextDayReminder.update(this, args, diagnostics)) {
-                                    // 默认开：首次有可用缓存时申请一次，不在每次启动重复询问。
-                                    val prefs = getSharedPreferences("timetable_next_day", MODE_PRIVATE)
-                                    if (args["enabled"] == true && !prefs.getBoolean("permissionAsked", false)) {
+                                val saved = NextDayReminder.update(context, args, diagnostics)
+                                val permissionAsked = context.getSharedPreferences("timetable_next_day", MODE_PRIVATE)
+                                    .getBoolean("permissionAsked", false)
+                                Triple(saved, permissionAsked, diagnostics)
+                            }, onSuccess = { value ->
+                                @Suppress("UNCHECKED_CAST")
+                                val (saved, permissionAsked, diagnostics) = value as Triple<Boolean, Boolean, MutableList<Map<String, Any?>>>
+                                if (saved) {
+                                    // Activity 权限交互仍在主线程；完成后台存储后才尝试提示。
+                                    if (args["enabled"] == true && !permissionAsked && !isFinishing && !isDestroyed) {
                                         try { requestReminderPermission(null) } catch (error: RuntimeException) {
                                             diagnostics.add(notifyFailureDetails(error, "next_day.permission") + ("reason_code" to "notification_permission_request_failed"))
                                         }
                                     }
                                     result.success(mapOf("diagnostics" to diagnostics))
                                 } else result.error("storage", "明日提醒配置保存失败", null)
-                            } catch (error: RuntimeException) {
-                                result.error("schedule", "明日提醒暂不可用", notifyFailureDetails(error, "next_day.update"))
-                            }
+                            })
                         }
                     }
                     "requestPermission" -> requestReminderPermission(result)
@@ -100,6 +125,11 @@ class MainActivity : FlutterActivity() {
         if (!flutterEngine.plugins.has(AttachmentPdfPreviewPlugin::class.java)) {
             flutterEngine.plugins.add(AttachmentPdfPreviewPlugin())
         }
+        BulletinAttachmentActions.register(this, flutterEngine.dartExecutor.binaryMessenger)
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            BulletinOfficeViewFactory.VIEW_TYPE,
+            BulletinOfficeViewFactory(flutterEngine.dartExecutor.binaryMessenger),
+        )
         if (!flutterEngine.plugins.has(ClientMetadataPlugin::class.java)) {
             flutterEngine.plugins.add(ClientMetadataPlugin())
         }
@@ -109,12 +139,18 @@ class MainActivity : FlutterActivity() {
         if (!flutterEngine.plugins.has(AppUpdatePlugin::class.java)) {
             flutterEngine.plugins.add(AppUpdatePlugin())
         }
+        if (!flutterEngine.plugins.has(AppIconPlugin::class.java)) {
+            flutterEngine.plugins.add(AppIconPlugin())
+        }
     }
 
     // 明暗切换（configChanges 含 uiMode，Activity 不重建）：桌面小组件按新配色重绘。
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        TimetableWidgetProvider.refreshIfNightChanged(applicationContext)
+        val context = applicationContext
+        TimetableNativeWork.background(context, "widget.configuration", "widget_configuration_refresh_failed") {
+            TimetableWidgetProvider.refreshIfNightChanged(context)
+        }
     }
 
     private fun requestReminderPermission(result: MethodChannel.Result?) {
@@ -142,7 +178,12 @@ class MainActivity : FlutterActivity() {
             permissionResult?.success(granted)
             permissionResult = null
             permissionRequestInFlight = false
-            if (granted) NextDayReminder.reschedule(this)
+            if (granted) {
+                val context = applicationContext
+                TimetableNativeWork.background(context, "next_day.permission_reschedule", "next_day_dispatch_failed") {
+                    NextDayReminder.reschedule(context, it)
+                }
+            }
         }
     }
 
@@ -152,7 +193,13 @@ class MainActivity : FlutterActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N_MR1) return
         try {
             val sm = getSystemService(ShortcutManager::class.java) ?: return
-            sm.removeAllDynamicShortcuts()
+            try {
+                sm.removeDynamicShortcuts(listOf("add_timetable_widget"))
+            } catch (_: IllegalArgumentException) {
+                // 本机没有这个旧动态 shortcut 时继续禁用可能已固定到桌面的旧 id。
+            } catch (_: IllegalStateException) {
+                // 桌面/系统暂时不可用时仍尝试禁用旧 id。
+            }
             try {
                 sm.disableShortcuts(listOf("add_timetable_widget"))
             } catch (_: IllegalArgumentException) {

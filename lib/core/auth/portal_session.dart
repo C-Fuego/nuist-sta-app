@@ -31,13 +31,22 @@ abstract final class PortalServices {
 
   /// 校园一卡通（电费）。登录落地 URL 的 query 里带 `synjones-auth`，这才是
   /// icard 接口真正认的凭据，Cookie 在那边没用。
+  ///
+  /// service 是回调地址 `/berserker-auth/cas/callback/wisedu`，`redirectUrl`
+  /// 的值在 service 内部已是一次编码的形式（`%3A`、`%2F`、`%3F`、`%3D`），
+  /// 对应浏览器 CAS 登录 URL 里的二次编码，保持原样。
   static final icard =
-      'https://${CampusHosts.icard}/berserker-auth/cas/login/wisedu'
-      '?targetUrl=https://${CampusHosts.icard}/plat-pc/?name=loginTransit';
+      'https://${CampusHosts.icard}/berserker-auth/cas/callback/wisedu'
+      '?redirectUrl=https%3A%2F%2F${CampusHosts.icard}'
+      '%2Fplat-pc%2F%3Fname%3DloginTransit';
 
   /// 信息门户（学业数据等 cus 接口）。实测未登录访问会被 302 到
   /// `authserver/login?service=https://i.<校园根域>/login`。
   static final iportal = 'https://${CampusHosts.iportal}/login';
+
+  /// 图书馆首页公开的 CAS 回调，service 中包含显式的 443 端口。
+  static final library =
+      'https://${CampusHosts.library}:443/meta-local/opac/cas/rosetta';
 
   /// 创新创业实践教育平台 cxcyjy（双创学分的上级平台）。不是裸域名：平台
   /// 首页登录按钮直指这个回调，探测自 `/pt` 页面。CAS 落地后平台还要再由页面
@@ -318,7 +327,11 @@ class PortalSession {
       _cas.cookies.checkGeneration(generation);
       var response = await http.followRedirects(await send(http));
       _cas.cookies.checkGeneration(generation);
-      if (!_looksLikeLoginPage(response)) return response;
+      bool sessionExpired(Response<dynamic> response) =>
+          _looksLikeLoginPage(response) ||
+          (service == PortalServices.library &&
+              PortalHttp.isLoginResponse(response));
+      if (!sessionExpired(response)) return response;
 
       // 被门户弹回了登录页，说明落盘的会话已经过期，重登一次再放行。
       _log.info(
@@ -332,7 +345,7 @@ class PortalSession {
       http = await clientFor(service, force: true);
       response = await http.followRedirects(await send(http));
       _cas.cookies.checkGeneration(generation);
-      if (_looksLikeLoginPage(response)) {
+      if (sessionExpired(response)) {
         throw PortalLoginError(
           '重新登录后仍被门户拦回登录页，请稍后再试',
           code: 'reauthentication_exhausted',
@@ -519,6 +532,7 @@ class PortalSession {
               },
             ),
             securityContext: trust.context,
+            securityContextProvider: () => trust.context,
             onBadCertificate: trust.onBadCertificate,
           )
           ..interceptors.add(

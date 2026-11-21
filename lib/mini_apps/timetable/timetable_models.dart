@@ -16,14 +16,15 @@ CourseKind? parseCourseKind(Object? value) {
   return null;
 }
 
-/// 当前时段的有效类型，显式选择优先于教务自动识别。
+/// 当前时段的有效类型，显式选择优先于教务自动识别；
+/// 自动识别中体育课优先于教务实验标记，避免旧体育数据误判为实验课。
 CourseKind courseKindOf({required Course course, required CourseSlot slot}) =>
     slot.kind ??
     course.displayKind ??
-    (slot.isLab
-        ? CourseKind.lab
-        : course.isPe
+    (course.isPe
         ? CourseKind.pe
+        : slot.isLab
+        ? CourseKind.lab
         : CourseKind.standard);
 
 /// 当前时段的显示名称，只有体育类型展示体育项目。
@@ -166,6 +167,15 @@ class CourseSlot {
   /// w < 1 或超出位串长度一律 false（教务与手动课程都存位串）。
   bool hasClassInWeek(int w) => occursInWeek(w);
 
+  /// [afterWeek] 之后最近一次有课的教学周；之后无课返回 null。
+  int? nextActiveWeek(int afterWeek) {
+    final start = afterWeek < 0 ? 1 : afterWeek + 1;
+    for (var w = start; w <= weeks.length; w++) {
+      if (weeks.codeUnitAt(w - 1) == 0x31) return w;
+    }
+    return null;
+  }
+
   /// 单周 / 双周 / 全周（仅看位串内出现的周）。
   WeekParity get parity {
     var odd = false;
@@ -183,6 +193,11 @@ class CourseSlot {
     if (even) return WeekParity.even;
     return WeekParity.all;
   }
+
+  /// 格内单/双周胶囊用的周期判定：仅全单或全双，且呈现隔周规律
+  /// （2 周时须相邻隔周如 1、3 周；≥3 周时须含至少一对步长 2 的相邻周，
+  /// 兼顾法定节假日跳周，同时避免第 3、15 周这类零散周次误标为单/双周）。
+  WeekParity get displayParity => displayWeekParity(weeks);
 
   Map<String, dynamic> toJson() => {
     'day': day,
@@ -270,6 +285,30 @@ class SlotRef {
 }
 
 enum WeekParity { all, odd, even }
+
+/// 按周次位串判定是否应展示「单周 / 双周」标签。
+WeekParity displayWeekParity(String weeks) {
+  var odd = false;
+  var even = false;
+  var count = 0;
+  int? prev;
+  var hasStepTwo = false;
+  for (var i = 0; i < weeks.length; i++) {
+    if (weeks.codeUnitAt(i) != 0x31) continue;
+    final w = i + 1;
+    if (w.isOdd) {
+      odd = true;
+    } else {
+      even = true;
+    }
+    if (odd && even) return WeekParity.all;
+    if (prev != null && w - prev == 2) hasStepTwo = true;
+    prev = w;
+    count++;
+  }
+  if (count < 2 || !hasStepTwo) return WeekParity.all;
+  return odd ? WeekParity.odd : WeekParity.even;
+}
 
 /// 一门课（可含多个时段）。
 class Course {
@@ -1284,6 +1323,23 @@ class TimetableParser {
     return settings.copyWith(termStartDate: start, termStartFromJwxt: true);
   }
 
+  /// 应用 cxxljc 行：读取开学日期 XQKSRQ 与总周数 ZZC（用于往年/未来学期）。
+  static TimetableSettings _applyCxxljcMeta(
+    TimetableSettings settings,
+    Map<dynamic, dynamic> cxxljc,
+  ) {
+    final rows = cxxljc['rows'] as List? ?? const [];
+    if (rows.isEmpty || rows.first is! Map) return settings;
+    final row = rows.first as Map;
+    final start = _parseDate(row['XQKSRQ']?.toString().split(' ').first);
+    final zzc = _asInt(row['ZZC']);
+    return settings.copyWith(
+      termStartDate: start ?? settings.termStartDate,
+      termStartFromJwxt: start != null ? true : settings.termStartFromJwxt,
+      maxWeeks: zzc != null && zzc > 0 ? zzc : settings.maxWeeks,
+    );
+  }
+
   /// 解析本地/debug JSON：既支持教务原始结构，也支持 [TimetableSnapshot]。
   static TimetableSnapshot parseImportJson(
     Map<String, dynamic> json, {
@@ -1326,6 +1382,11 @@ class TimetableParser {
       final dqzc = datas['dqzc'];
       if (dqzc is Map) {
         settings = _applyDqzcMeta(settings, dqzc);
+      }
+      // 往年/教历学期元数据：cxxljc XQKSRQ/ZZC（仅在未由 dqzc 拿到时补充开学日）
+      final cxxljc = datas['cxxljc'];
+      if (cxxljc is Map) {
+        settings = _applyCxxljcMeta(settings, cxxljc);
       }
       // 总周：配置 maxWeeks 与最长 SKZC 位串取较大值（无单独教历）
       final fromSkzc = maxWeeksFromSkzc(weekRows, fallback: settings.maxWeeks);

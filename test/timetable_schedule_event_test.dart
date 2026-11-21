@@ -172,6 +172,36 @@ Positioned _positionedOf(WidgetTester tester, Finder f) => tester.widget(
 );
 
 void main() {
+  testWidgets('日程详情进入编辑后键盘高度变化复用底层详情实例', (tester) async {
+    _load();
+    late ScheduleEvent event;
+    await tester.runAsync(() async {
+      event = await _c.addScheduleEvent(_event(''));
+    });
+    await _pumpLauncher(
+      tester,
+      (context) =>
+          showScheduleEventDetailSheet(context, event: event, controller: _c),
+    );
+    final detail = tester.widget(find.byType(ScheduleEventDetailSheet));
+    await tester.tap(find.byKey(const Key('schedule_detail_edit')));
+    await tester.pumpAndSettle();
+    await tester.showKeyboard(find.byKey(const Key('schedule_form_note')));
+    await tester.pump();
+    for (var step = 0; step <= 12; step++) {
+      tester.view.viewInsets = FakeViewPadding(bottom: step * 25.0);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.widget(
+          find.byType(ScheduleEventDetailSheet, skipOffstage: false),
+        ),
+        same(detail),
+      );
+    }
+    tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
   late Directory tmp;
   final origClock = TimetableController.clock;
   final origBinding = TimetableController.bindingCheck;
@@ -622,16 +652,23 @@ void main() {
       );
     });
 
-    testWidgets('EV10/EX06 与课程重叠显示冲突圆点和「2 门」；考试隐藏时不计冲突', (tester) async {
+    testWidgets('EV10/EX06 与课程重叠优先显示考试格、冲突圆点和「2 项」；考试隐藏时不计冲突', (tester) async {
       _load(manual: [_course('m1', '测试课甲', day: 2, start: 1, end: 2)]);
       await tester.runAsync(() => _c.addScheduleEvent(_event('')));
       await _pumpGrid(tester);
-      expect(find.text('2 门'), findsOneWidget);
-      expect(find.byKey(const Key('course_cell_conflict_dot')), findsOneWidget);
+      expect(_eventCell('测试考试甲'), findsOneWidget);
+      expect(find.text('2 项'), findsOneWidget);
+      expect(
+        find.byKey(const Key('schedule_cell_conflict_dot')),
+        findsOneWidget,
+      );
 
       _setShowExams(false);
       await _pumpGrid(tester);
+      expect(_eventCell('测试考试甲'), findsNothing);
+      expect(find.text('2 项'), findsNothing);
       expect(find.text('2 门'), findsNothing);
+      expect(find.byKey(const Key('schedule_cell_conflict_dot')), findsNothing);
       expect(find.byKey(const Key('course_cell_conflict_dot')), findsNothing);
     });
 

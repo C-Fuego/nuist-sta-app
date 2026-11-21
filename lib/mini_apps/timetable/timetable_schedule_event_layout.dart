@@ -6,7 +6,6 @@ import 'timetable_remaining_weeks.dart';
 import 'timetable_models.dart';
 import 'timetable_theme.dart';
 import 'timetable_week_layout.dart';
-import 'timetable_course_color.dart';
 
 /// 日程（考试 / 其他）在周视图、详情、首页卡片共用的纯逻辑与样式（spec §14.2–§14.4）。
 
@@ -95,14 +94,20 @@ List<ScheduleGridItem> scheduleItemsForColumn(
           activeThisWeek: true,
         ),
   ];
-  // 幽灵：仅考试、仅更早周、仅 showNonCurrentWeek + showExams。
-  if (controller.settings.showNonCurrentWeek && controller.settings.showExams) {
+  // 幽灵：仅考试、仅更早周、仅 showNonCurrentWeek + showExams；
+  // 往年已结束学期不提前把期末考试投射成幽灵格，以免遮挡正常周课表，
+  // 且只投射落在当前学期总周数内的考试（防止跨学期日期误入）。
+  if (!controller.isHistoricalSchedule(controller.activeStorageId) &&
+      controller.settings.showNonCurrentWeek &&
+      controller.settings.showExams) {
     final seen = {for (final i in items) i.event.id};
+    final maxWeek = controller.totalWeeks;
     for (final e in controller.scheduleEvents) {
       if (!e.isExam) continue;
       if (seen.contains(e.id)) continue;
       if (e.date.weekday != day) continue;
       final examWeek = controller.weekOfDate(e.date);
+      if (examWeek < 1 || examWeek > maxWeek) continue;
       if (!examHasRemainingWeeks(examWeek, week)) continue;
       if (scheduleNodeRange(controller.periods, e.start, e.end) case final r?) {
         items.add(
@@ -193,11 +198,7 @@ Color scheduleCellBg(
     return TimetableTheme.examCellBg(Color(c.settings.examColor), dark: dark);
   }
   return TimetableTheme.blendCellBg(
-    TimetableTheme.coursePair(
-      scheduleOtherColorIndex(c, e),
-      scheme: coursePaletteSchemeFor(c),
-      dark: dark,
-    ).bg,
+    TimetableTheme.autoCoursePair(scheduleOtherColorIndex(c, e), dark: dark).bg,
     c.settings.cellOpacity,
     dark: dark,
   );
@@ -215,9 +216,8 @@ Color scheduleCellFg(
     return dark ? TimetableTheme.offWeekTextDark : TimetableTheme.offWeekText;
   }
   if (e.isExam) return TimetableTheme.examText;
-  return TimetableTheme.coursePair(
+  return TimetableTheme.autoCoursePair(
     scheduleOtherColorIndex(c, e),
-    scheme: coursePaletteSchemeFor(c),
     dark: dark,
   ).fg;
 }

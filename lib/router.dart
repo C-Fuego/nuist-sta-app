@@ -15,12 +15,41 @@ import 'shell/profile/portal_bind/portal_import_page.dart';
 import 'shell/profile/portal_bind/portal_scan_page.dart';
 import 'shell/profile/portal_bind/portal_status_page.dart';
 import 'shell/profile/profile_page.dart';
+import 'shell/profile/settings/app_icon_page.dart';
 import 'shell/profile/settings/settings_page.dart';
 import 'shell/root_page.dart';
 import 'shell/announcement/announcement_controller.dart';
 import 'shell/announcement/announcement_overlay.dart';
 import 'shell/update/update_controller.dart';
 import 'shell/study/study_page.dart';
+
+/// 系统通知和桌面小组件进入课表时直接显示内容，返回仍沿用 Material 手势。
+const timetableDirectLaunch = 'timetableDirectLaunch';
+
+class _DirectLaunchPage extends MaterialPage<void> {
+  const _DirectLaunchPage({required super.key, required super.child});
+
+  @override
+  Route<void> createRoute(BuildContext context) => _DirectLaunchRoute(this);
+}
+
+class _DirectLaunchRoute extends PageRoute<void>
+    with MaterialRouteTransitionMixin<void> {
+  _DirectLaunchRoute(_DirectLaunchPage page) : super(settings: page);
+
+  @override
+  Duration get transitionDuration => Duration.zero;
+
+  @override
+  Duration get reverseTransitionDuration => const Duration(milliseconds: 300);
+
+  @override
+  bool get maintainState => true;
+
+  @override
+  Widget buildContent(BuildContext context) =>
+      (settings as _DirectLaunchPage).child;
+}
 
 /// 全局路由的构建工厂：由 NuistApp 在初始化时创建一次，
 /// 保证每次挂载都是干净实例（widget 测试之间不互相串状态）。
@@ -38,11 +67,15 @@ import 'shell/study/study_page.dart';
 /// - `/place/:placeId`：校园地图的地物详情页（建筑 / POI / 通用地物共用）。
 ///   与壳平级，可深链与分享；页面按编号自行取数，不依赖地图页是否打开。
 /// - `/about`：关于页（应用图标、版本号、贡献者名单），与壳平级。
-/// - `/settings`：App 级设置页（外观、诊断日志），与壳平级。
+/// - `/settings`：App 级设置页（外观、应用图标、诊断日志），与壳平级；
+///   `/settings/app-icon` 是其子路由，沿用普通页面返回手势。
 GoRouter buildRouter({
   UpdateController? updateController,
   AnnouncementController? announcementController,
+  bool ignorePlatformInitialRoute = false,
 }) => GoRouter(
+  initialLocation: ignorePlatformInitialRoute ? '/' : null,
+  overridePlatformDefaultLocation: ignorePlatformInitialRoute,
   routes: [
     StatefulShellRoute.indexedStack(
       pageBuilder: (context, state, navigationShell) => MaterialPage<void>(
@@ -70,6 +103,8 @@ GoRouter buildRouter({
           ],
         ),
         StatefulShellBranch(
+          // 后台预建学习页；卡片在页面不可见时延后构建，首次切换不再整页现建。
+          preload: true,
           routes: [
             GoRoute(
               path: '/study',
@@ -114,6 +149,9 @@ GoRouter buildRouter({
                     : null,
               )
             : manifest.entry!(context);
+        if (id == 'timetable' && state.extra == timetableDirectLaunch) {
+          return _DirectLaunchPage(key: state.pageKey, child: child);
+        }
         return MaterialPage<void>(key: state.pageKey, child: child);
       },
     ),
@@ -174,6 +212,15 @@ GoRouter buildRouter({
       path: '/settings',
       pageBuilder: (_, state) =>
           MaterialPage<void>(key: state.pageKey, child: const SettingsPage()),
+      routes: [
+        GoRoute(
+          path: 'app-icon',
+          pageBuilder: (_, state) => MaterialPage<void>(
+            key: state.pageKey,
+            child: const AppIconPage(),
+          ),
+        ),
+      ],
     ),
   ],
 );

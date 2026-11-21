@@ -28,6 +28,12 @@ abstract interface class VpnSessionConnector implements VpnConnector {
   int? get sessionId;
 }
 
+/// 在取用已缓存的 HTTP 连接前确认隧道，包含合流等待原生恢复探测。
+abstract interface class VpnPreparedConnector implements VpnSessionConnector {
+  /// 等待共享启动或恢复，成功后 [sessionId] 指向可用的隧道。
+  Future<void> prepare();
+}
+
 /// Dio 的校园网络适配器，分别持有直连与 VPN 的 HTTP 连接池。
 class VpnHttpClientAdapter implements HttpClientAdapter {
   VpnHttpClientAdapter({
@@ -35,6 +41,7 @@ class VpnHttpClientAdapter implements HttpClientAdapter {
     this.detectCampusNetwork,
     this.forceVpn = false,
     this.securityContext,
+    this.securityContextProvider,
     this.onBadCertificate,
     HttpClient Function()? createHttpClient,
   }) : _createHttpClient = createHttpClient ?? HttpClient.new;
@@ -43,6 +50,9 @@ class VpnHttpClientAdapter implements HttpClientAdapter {
   final CampusNetworkDetector? detectCampusNetwork;
   final bool forceVpn;
   final SecurityContext? securityContext;
+
+  /// 证书缓存到期重建时取得最新上下文，不捕获过期对象。
+  final SecurityContext Function()? securityContextProvider;
   final bool Function(X509Certificate, String, int)? onBadCertificate;
   final HttpClient Function() _createHttpClient;
   IOHttpClientAdapter? _direct;
@@ -69,6 +79,10 @@ class VpnHttpClientAdapter implements HttpClientAdapter {
     }
     return client;
   }
+
+  /// TLS 预补链沿用与普通请求相同的选路策略，不试探业务接口。
+  Future<HttpClient> createPreparationClient() async =>
+      createRoutedClient(useVpn: forceVpn || await _selectRoute());
 
   IOHttpClientAdapter _adapter(bool vpn) {
     if (!vpn) {
@@ -110,7 +124,7 @@ class VpnHttpClientAdapter implements HttpClientAdapter {
         final secure = await SecureSocket.secure(
           raw,
           host: uri.host,
-          context: securityContext,
+          context: securityContextProvider?.call() ?? securityContext,
           onBadCertificate: (certificate) =>
               onBadCertificate?.call(certificate, uri.host, uri.port) ?? false,
         );
@@ -190,6 +204,26 @@ class VpnHttpClientAdapter implements HttpClientAdapter {
       // 选路只执行一次，发送失败不切换出口，也不重放请求体。
       options.extra['vpnDio.usedVpn'] = useVpn;
       log?.route = useVpn ? (mustUseVpn ? 'VPN（强制）' : 'VPN') : '直连';
+      if (useVpn && connector is VpnPreparedConnector) {
+        final prepared = connector as VpnPreparedConnector;
+        await Future.any([
+          prepared.prepare(),
+          aborted.future.then<void>((_) {}),
+        ]).timeout(
+          options.connectTimeout ?? const Duration(seconds: 70),
+          onTimeout: () => throw DioException.connectionTimeout(
+            requestOptions: options,
+            timeout: options.connectTimeout ?? const Duration(seconds: 70),
+          ),
+        );
+        if (cancelled) {
+          throw DioException.requestCancelled(
+            requestOptions: options,
+            reason: '请求已取消',
+          );
+        }
+        if (_closed) throw StateError('VPN 客户端已关闭');
+      }
       final response = await _adapter(useVpn)
           .fetch(options, requestStream, cancelFuture);
       if (log?.managedByInterceptor == false) {
