@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/navigation/app_page.dart';
 import '../../core/app_snack_bar.dart';
 import '../../core/colors.dart';
 import 'timetable_appearance_page.dart';
@@ -199,7 +200,7 @@ class TimetableSettingsPage extends StatelessWidget {
                           title: '外观',
                           showChevron: true,
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
+                            AppPageRoute<void>(
                               builder: (_) =>
                                   TimetableAppearancePage(controller: c),
                             ),
@@ -220,6 +221,15 @@ class TimetableSettingsPage extends StatelessWidget {
                           onSelected: (v) =>
                               update((x) => x.copyWith(homeMaxItems: v)),
                         ),
+                        TimetableSettingsChoiceRow<int>(
+                          key: const Key('tt_settings_home_max_exams'),
+                          title: TtSettingsText.homeMaxExams,
+                          showInlineOptions: false,
+                          options: const {1: '1', 2: '2', 3: '3', 4: '4'},
+                          selected: s.homeMaxExams,
+                          onSelected: (v) =>
+                              update((x) => x.copyWith(homeMaxExams: v)),
+                        ),
                         TimetableSettingsSwitchRow(
                           key: const Key('tt_settings_show_tomorrow'),
                           title: '显示明天的课',
@@ -234,7 +244,7 @@ class TimetableSettingsPage extends StatelessWidget {
                             title: TtSettingsText.widgetCard,
                             showChevron: true,
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
+                              AppPageRoute<void>(
                                 builder: (_) => TimetableWidgetSettingsPage(
                                   controller: c,
                                   actions: a,
@@ -266,7 +276,7 @@ class TimetableSettingsPage extends StatelessWidget {
                           subtitle: '整天调课、变动记录与恢复课表',
                           showChevron: true,
                           onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
+                            AppPageRoute<void>(
                               builder: (_) =>
                                   TimetableManagementPage(controller: c),
                             ),
@@ -306,6 +316,7 @@ Future<void> _confirmRestoreAll(
   String? saveError;
   final changed = await showDialog<bool>(
     context: context,
+    useRootNavigator: false,
     builder: (_) => StatefulBuilder(
       builder: (dialogContext, setDialogState) => AlertDialog(
         key: const Key('tt_restore_jwxt_dialog'),
@@ -1349,7 +1360,7 @@ class _ReminderCardState extends State<_ReminderCard>
   }
 
   void _openGuide() => Navigator.of(context).push(
-    MaterialPageRoute<void>(
+    AppPageRoute<void>(
       builder: (_) => TimetableKeepAliveGuidePage(actions: widget.actions),
     ),
   );

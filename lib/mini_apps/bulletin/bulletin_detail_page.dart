@@ -11,7 +11,6 @@ import 'bulletin_api.dart';
 import 'bulletin_attachment_preview_dialog.dart';
 import 'bulletin_detail_repository.dart';
 import 'bulletin_models.dart';
-import 'bulletin_word_preview_cache.dart';
 
 /// 在应用内优先以原生排版阅读学校官网的公告正文。
 class BulletinDetailPage extends StatefulWidget {
@@ -128,13 +127,6 @@ class _BulletinDetailPageState extends State<BulletinDetailPage> {
         }
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && identical(_detail, document)) {
-        unawaited(
-          BulletinWordPreviewCache.warm(document.attachments, _repository.api),
-        );
-      }
-    });
   }
 
   void _activateWebViewFallback() {
@@ -182,6 +174,7 @@ class _BulletinDetailPageState extends State<BulletinDetailPage> {
     try {
       await showDialog<void>(
         context: context,
+        useRootNavigator: false,
         builder: (_) => BulletinAttachmentPreviewDialog(
           attachment: attachment,
           api: _repository.api,

@@ -30,6 +30,7 @@ class CourseCell extends StatelessWidget {
     this.onDragCancel,
     this.pairOverride,
     this.fontReferenceWidth,
+    this.settingsOverride,
   });
 
   /// 长按拖动调课的触发时长（spec §13.2：按住约 0.8 秒后开始移动才拖起来）。
@@ -47,6 +48,9 @@ class CourseCell extends StatelessWidget {
 
   /// 为空时用 [TimetableController.instance]。
   final TimetableController? controller;
+
+  /// 局部预览覆盖设置（滑杆拖动过程中避免落盘，只重绘预览）。
+  final TimetableSettings? settingsOverride;
 
   /// 本周该时段同时冲突的项数（由 WeekGrid 聚合，仅统计本周活跃项）；
   /// >1 时显示冲突胶囊与右上角冲突圆点。
@@ -73,7 +77,7 @@ class CourseCell extends StatelessWidget {
   /// 当前格宽下完整显示课名、地点、教师和标签所需的高度，不含格外边距。
   double preferredHeight(BuildContext context) {
     final ctl = _ctl;
-    final settings = ctl.settings;
+    final settings = settingsOverride ?? ctl.settings;
     final scaler = MediaQuery.textScalerOf(context);
     final direction = Directionality.of(context);
     final base = DefaultTextStyle.of(context).style;
@@ -166,7 +170,7 @@ class CourseCell extends StatelessWidget {
   Widget _buildCell(BuildContext context) {
     final active = cell.activeThisWeek;
     final ctl = _ctl;
-    final settings = ctl.settings;
+    final settings = settingsOverride ?? ctl.settings;
     // 自动色使用柔和配色，自选色原样显示。不透明度只作用于 bg（往页面底色混合）；
     // 文字、冲突圆点、角标都用不透明的 fg，不从 bg 派生（§13.6）。
     // 非本周格（§13.8）：白底 + 1px 描边 + offWeekText，不取配色、不受不透明度影响。
@@ -428,7 +432,7 @@ class CourseCell extends StatelessWidget {
   ) {
     final scaler = MediaQuery.textScalerOf(context);
     final base = DefaultTextStyle.of(context).style;
-    final settings = _ctl.settings;
+    final settings = settingsOverride ?? _ctl.settings;
     final factor = settings.fontScale.factor;
     final contentWidth = fontReferenceWidth == null
         ? box.maxWidth
@@ -602,17 +606,29 @@ class CourseCell extends StatelessWidget {
   }) => Container(
     key: key,
     height: height,
-    alignment: height == null ? null : Alignment.center,
     padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: 0),
     decoration: BoxDecoration(
       border: Border.all(color: fg.withValues(alpha: borderAlpha), width: 1),
       borderRadius: BorderRadius.circular(8),
     ),
-    child: Text(
-      text,
-      style: TextStyle(fontSize: fontSize, color: fg),
-    ),
+    child: height == null
+        ? Text(
+            text,
+            style: TextStyle(fontSize: fontSize, color: fg),
+          )
+        : Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: Text(
+              text,
+              style: TextStyle(fontSize: fontSize, color: fg),
+            ),
+          ),
   );
+
+  static const int _badgeWidthCacheCapacity = 128;
+  static bool _badgeWidthCacheStarted = false;
+  static final _badgeWidthCache = <Object, double>{};
 
   /// 胶囊在当前字体与系统缩放下的宽度（含横向内边距与 1dp 描边），
   /// 供底部行决定是否还能放下下一个胶囊。
@@ -622,17 +638,32 @@ class CourseCell extends StatelessWidget {
     double fontSize = TimetableTheme.badgeSize,
     double paddingH = 5,
   }) {
-    final base = DefaultTextStyle.of(context).style;
+    if (!_badgeWidthCacheStarted) {
+      _badgeWidthCacheStarted = true;
+      PaintingBinding.instance.systemFonts.addListener(_badgeWidthCache.clear);
+    }
+    final clean = TimetableTheme.measurementStyle(
+      DefaultTextStyle.of(context).style.copyWith(fontSize: fontSize),
+    );
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    final key = (text, clean, scaler, direction);
+    final cached = _badgeWidthCache.remove(key);
+    if (cached != null) {
+      _badgeWidthCache[key] = cached;
+      return cached + paddingH * 2 + 2;
+    }
     final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: base.copyWith(fontSize: fontSize),
-      ),
-      textDirection: Directionality.of(context),
-      textScaler: MediaQuery.textScalerOf(context),
+      text: TextSpan(text: text, style: clean),
+      textDirection: direction,
+      textScaler: scaler,
     )..layout();
     final width = painter.width;
     painter.dispose();
+    if (_badgeWidthCache.length >= _badgeWidthCacheCapacity) {
+      _badgeWidthCache.remove(_badgeWidthCache.keys.first);
+    }
+    _badgeWidthCache[key] = width;
     return width + paddingH * 2 + 2;
   }
 
@@ -883,10 +914,12 @@ CellContentPlan _planCellContent({
 /// 格内最小字号（sp，含系统缩放）。
 const double kCellMinFontSize = 10;
 
+final _teacherSeparatorPattern = RegExp(r'[,，、;；]\s*');
+
 /// 教师名单按姓名换行，避免将前后两位教师的名字连在一起拆行。
 String cellTeacherText(String teacher) => teacher
     .trim()
-    .split(RegExp(r'[,，、;；]\s*'))
+    .split(_teacherSeparatorPattern)
     .map((name) => name.trim())
     .where((name) => name.isNotEmpty)
     .join('\n');

@@ -8,12 +8,15 @@ import 'package:go_router/go_router.dart';
 
 import 'core/app_info.dart';
 import 'core/app_snack_bar.dart';
+import 'core/auth/student_academic_info.dart';
 import 'core/logging/app_log.dart';
 import 'core/network/vpn_gateway.dart';
+import 'core/navigation/app_navigation.dart';
 import 'core/refresh/silent_refresh.dart';
 import 'core/schedule/weekly_classes.dart';
 import 'core/theme.dart';
 import 'core/theme_mode.dart';
+import 'mini_apps/student_info/student_info_academic_source.dart';
 import 'mini_apps/timetable/timetable_lifecycle.dart';
 import 'mini_apps/timetable/timetable_notify_bridge.dart';
 import 'mini_apps/timetable/timetable_week_classes.dart';
@@ -37,9 +40,11 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
   static final _log = AppLog.logger('app.lifecycle');
   late final _updates = widget.updates ?? UpdateController.instance;
   late final _updateBridge = widget.updateBridge ?? AppUpdateBridge.instance;
+  final _navigation = AppNavigationController();
   late final String? _systemTimetableRoute = _initialTimetableRoute();
   late final GoRouter _router = buildRouter(
     updateController: _updates,
+    navigation: _navigation,
     ignorePlatformInitialRoute: _systemTimetableRoute != null,
   );
   bool _openingUpdate = false;
@@ -77,10 +82,14 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
       _router.routerDelegate.setNewRoutePath(
         _router.configuration.findMatch(Uri.parse('/')),
       );
-      _router.push(route, extra: timetableDirectLaunch);
+      _router.push(
+        AppNavigation.locationInBranch(route, 0),
+        extra: timetableDirectLaunch,
+      );
     }
     // 校园地图等通过 core 接口读本周课程，由壳把课表的实现登记进去。
     WeeklyClasses.source ??= const TimetableWeeklyClasses();
+    StudentAcademics.source ??= StudentInfoAcademicSource.instance;
     AppThemeMode.instance.load();
     // 点击上课提醒 / 桌面小组件 → 打开课表（今天所在周）。
     final bridge = TimetableNotifyBridge.instance;
@@ -137,7 +146,9 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
     }
   }
 
-  void _openRoute(String route) {
+  void _openRoute(String route) => unawaited(_showTimetableRoute(route));
+
+  Future<void> _showTimetableRoute(String route) async {
     // 只接受站内课表路由，防止外部 Intent 注入任意跳转。
     final uri = Uri.tryParse(route);
     if (!mounted ||
@@ -147,27 +158,39 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
         uri.path != '/apps/timetable') {
       return;
     }
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await _navigation.gestureFinished;
+    if (!mounted) return;
+    _navigation.activate(0);
+    final target = AppNavigation.locationInBranch(route, 0);
+    final targetPath = Uri.parse(target).path;
     // 重复点击复用已打开的课表页，保留首页作为返回落点。
     final matches = _router.routerDelegate.currentConfiguration.matches;
-    final hasTimetable = matches.any(
-      (m) =>
-          m is ImperativeRouteMatch && m.matches.uri.path == '/apps/timetable',
+    bool containsTimetable(List<RouteMatchBase> matches) => matches.any(
+      (match) => match is ShellRouteMatch
+          ? containsTimetable(match.matches)
+          : match is ImperativeRouteMatch &&
+                match.matches.uri.path == targetPath,
     );
+    final hasTimetable = containsTimetable(matches);
     if (hasTimetable) {
-      while (_router.canPop() &&
-          _router.routerDelegate.currentConfiguration.uri.path !=
-              '/apps/timetable') {
-        _router.pop();
+      while (_router.canPop() && _router.state.uri.path != targetPath) {
+        final before = _router.routerDelegate.currentConfiguration;
+        await _navigation.branchNavigatorKeys[0].currentState?.maybePop();
+        // 内容保护或内部返回没有退出页面时，保留当前页面，不能强制清栈。
+        if (!mounted || before == _router.routerDelegate.currentConfiguration) {
+          return;
+        }
       }
     }
-    if (_router.routerDelegate.currentConfiguration.uri.path ==
-        '/apps/timetable') {
-      if (_router.routerDelegate.currentConfiguration.uri.toString() != route) {
-        _router.replace(route, extra: timetableDirectLaunch);
+    if (_router.state.uri.path == targetPath) {
+      if (_router.state.uri.toString() != target) {
+        _router.replace(target, extra: timetableDirectLaunch);
       }
       return;
     }
-    _router.push(route, extra: timetableDirectLaunch);
+    _router.push(target, extra: timetableDirectLaunch);
   }
 
   /// 冷启动等待任务与导航器就绪，通知和页面入口共用更新详情。
@@ -183,6 +206,8 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
         await _updates.ensureStarted();
       }
       await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      await _navigation.gestureFinished;
       if (!mounted) return;
       final navigatorContext =
           _router.routerDelegate.navigatorKey.currentContext;
@@ -243,6 +268,8 @@ class _NuistAppState extends State<NuistApp> with WidgetsBindingObserver {
     if (_listenForUpdates) {
       _updateBridge.setOpenHandler(null);
     }
+    _navigation.dispose();
+    _router.dispose();
     super.dispose();
   }
 
