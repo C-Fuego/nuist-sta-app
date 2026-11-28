@@ -41,11 +41,12 @@
             android:process=":bulletin_word" />
         <receiver android:name=".AppUpdateActionReceiver" android:exported="false"/>
         <receiver android:name=".AppUpdateInstallReceiver" android:exported="false"/>
-        <receiver android:name=".NextDayReminderReceiver" android:exported="true">
+        <receiver android:name=".NextDayReminderReceiver" android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.TIME_SET"/>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
                 <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED"/>
             </intent-filter>
@@ -84,6 +85,21 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
+        </activity-alias>
+        <activity-alias
+            android:name="dev.duohuo.nuist_sta_app.AltIcon"
+            android:targetActivity="dev.duohuo.nuist_sta_app.MainActivity"
+            android:enabled="false"
+            android:exported="true"
+            launcher:icon="@mipmap/ic_launcher_alt"
+            android:roundIcon="@mipmap/ic_launcher_alt"
+            android:label="NUIST++">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity-alias>
         <activity-alias
             android:name="dev.duohuo.nuist_sta_app.MascotIcon"
@@ -97,6 +113,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity-alias>
         <activity-alias
             android:name="dev.duohuo.nuist_sta_app.MascotColorIcon"
@@ -110,6 +127,7 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <meta-data android:name="flutter_deeplinking_enabled" android:value="false"/>
         </activity-alias>
         <!-- 自定义桌面快捷方式的固定回调；只由应用自身 PendingIntent 触发。 -->
         <receiver android:name=".AppIconShortcutReceiver" android:exported="false"/>
@@ -149,6 +167,19 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_timetable_2x2_info"/>
         </receiver>
+        <!-- 4×6 当周课表共用刷新广播，翻周只更新当前实例。 -->
+        <receiver
+            android:name=".TimetableWeekWidgetProvider"
+            android:exported="true"
+            android:label="@string/wg_week_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_timetable_week_info"/>
+        </receiver>
+        <receiver android:name=".TimetableWeekWidgetFlipReceiver" android:exported="false"/>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

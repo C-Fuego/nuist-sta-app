@@ -17,21 +17,31 @@ class MainActivity : FlutterActivity() {
     private var initialRouteRead = false
     private var initialRoute: String? = null
 
+    override fun shouldHandleDeeplinking(): Boolean = false
+
     override fun getInitialRoute(): String? {
         if (initialRouteRead) return initialRoute
         initialRouteRead = true
-        val route = intent?.getStringExtra(NotifyStore.EXTRA_ROUTE)
+        val route = NotifyStore.timetableLaunchRoute(this, intent)
             ?: if (intent?.dataString == NextDayReminder.OPEN_URI) "/apps/timetable?focus=tomorrow" else null
         // 可信系统入口在 Flutter 第一帧前决定目标；其余 Intent 沿用普通启动。
-        initialRoute = if (route == NotifyStore.ROUTE_TIMETABLE || route == "/apps/timetable?focus=tomorrow") route
-        else super.getInitialRoute()
+        initialRoute = when (route) {
+            NotifyStore.ROUTE_TIMETABLE,
+            NotifyStore.ROUTE_TIMETABLE_NEXT_WEEK,
+            NotifyStore.ROUTE_TIMETABLE_WIDGET_SETTINGS,
+            "/apps/timetable?focus=tomorrow" -> route
+            else -> super.getInitialRoute()
+        }
         return initialRoute
     }
 
     override fun onNewIntent(intent: Intent) {
         // Flutter 插件在 super 内分发 Intent；由同一 openRoute 通道处理所有点击，避免双重压栈。
-        if (intent.dataString == NextDayReminder.OPEN_URI) {
+        if (intent.action == NotifyStore.widgetSettingsAction(this)) {
+            intent.putExtra(NotifyStore.EXTRA_ROUTE, NotifyStore.ROUTE_TIMETABLE_WIDGET_SETTINGS)
+        } else if (intent.dataString == NextDayReminder.OPEN_URI) {
             intent.putExtra(NotifyStore.EXTRA_ROUTE, "/apps/timetable?focus=tomorrow")
+            intent.data = null
         }
         // Glance 用内部 URI 区分点击动作；交给提醒插件处理，不能作为 Flutter 深链。
         if (intent.hasExtra(NotifyStore.EXTRA_ROUTE) && intent.data?.scheme == "glance-action") {
@@ -42,6 +52,10 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        if (intent?.dataString == NextDayReminder.OPEN_URI) {
+            intent.putExtra(NotifyStore.EXTRA_ROUTE, "/apps/timetable?focus=tomorrow")
+            intent.data = null
+        }
         if (intent?.hasExtra(NotifyStore.EXTRA_ROUTE) == true && intent?.data?.scheme == "glance-action") {
             intent.data = null
         }
@@ -114,19 +128,11 @@ class MainActivity : FlutterActivity() {
                             TimetableNativeWork.reply(result, "schedule", "明日提醒暂不可用", "next_day.update", action = {
                                 val diagnostics = mutableListOf<Map<String, Any?>>()
                                 val saved = NextDayReminder.update(context, args, diagnostics)
-                                val permissionAsked = context.getSharedPreferences("timetable_next_day", MODE_PRIVATE)
-                                    .getBoolean("permissionAsked", false)
-                                Triple(saved, permissionAsked, diagnostics)
+                                saved to diagnostics
                             }, onSuccess = { value ->
                                 @Suppress("UNCHECKED_CAST")
-                                val (saved, permissionAsked, diagnostics) = value as Triple<Boolean, Boolean, MutableList<Map<String, Any?>>>
+                                val (saved, diagnostics) = value as Pair<Boolean, MutableList<Map<String, Any?>>>
                                 if (saved) {
-                                    // Activity 权限交互仍在主线程；完成后台存储后才尝试提示。
-                                    if (args["enabled"] == true && !permissionAsked && !isFinishing && !isDestroyed) {
-                                        try { requestReminderPermission(null) } catch (error: RuntimeException) {
-                                            diagnostics.add(notifyFailureDetails(error, "next_day.permission") + ("reason_code" to "notification_permission_request_failed"))
-                                        }
-                                    }
                                     result.success(mapOf("diagnostics" to diagnostics))
                                 } else result.error("storage", "明日提醒配置保存失败", null)
                             })
@@ -177,12 +183,11 @@ class MainActivity : FlutterActivity() {
             result?.success(true)
             return
         }
-        if (permissionRequestInFlight) {
+        if (NotifyStore.notificationPermissionInFlight || permissionRequestInFlight) {
             result?.success(false)
             return
         }
-        getSharedPreferences("timetable_next_day", MODE_PRIVATE).edit()
-            .putBoolean("permissionAsked", true).apply()
+        NotifyStore.notificationPermissionInFlight = true
         permissionRequestInFlight = true
         permissionResult = result
         requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2202)
@@ -194,7 +199,10 @@ class MainActivity : FlutterActivity() {
             val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
             permissionResult?.success(granted)
             permissionResult = null
-            permissionRequestInFlight = false
+            if (permissionRequestInFlight) {
+                permissionRequestInFlight = false
+                NotifyStore.notificationPermissionInFlight = false
+            }
             if (granted) {
                 val context = applicationContext
                 TimetableNativeWork.background(context, "next_day.permission_reschedule", "next_day_dispatch_failed") {
@@ -202,6 +210,15 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        if (permissionRequestInFlight) {
+            permissionRequestInFlight = false
+            NotifyStore.notificationPermissionInFlight = false
+        }
+        permissionResult = null
+        super.onDestroy()
     }
 
     /** 清除旧版动态 shortcut，并禁用可能被用户 pinned 的旧 id，避免长按图标出现无效「添加小组件」。

@@ -17,7 +17,7 @@ class ReminderActions {
   final TimetableController? controller;
 
   bool get _useService =>
-      controller == null || identical(controller, TimetableController.instance);
+      controller == null || controller!.isAttachedToPrimaryHost;
 
   TimetableNotifyService get _svc => TimetableNotifyService.instance;
 
@@ -51,8 +51,8 @@ class ReminderActions {
       _svc.openBatteryOptimizationSettings();
 
   /// 请求添加小组件；原生侧负责检查权限和跳转设置，页面按结果显示指引。
-  Future<WidgetPinResult> pinWidget({required bool square}) =>
-      _svc.pinWidget(square: square);
+  Future<WidgetPinResult> pinWidget({required WidgetPinSize size}) =>
+      _svc.pinWidget(size: size);
 
   /// 用户确认权限说明后才跳转设置。
   Future<bool> openWidgetShortcutSettings() =>
@@ -105,6 +105,38 @@ class ReminderActions {
       c.settingsForEditing.copyWith(
         widgetCourseCount: TimetableSettings.sanitizeCourseCount(n),
       ),
+    );
+  }
+
+  // ---- 4×6 当周课表设置 ----
+
+  bool get widgetWeekShowWeekend => _settings.widgetWeekShowWeekend;
+
+  Future<void> setWeekWidgetOpacity(int value) async {
+    final next = TimetableSettings.sanitizeOpacity(value);
+    if (_useService) return _svc.setWeekWidgetOpacity(next);
+    final c = controller!;
+    await c.updateSettings(
+      c.settingsForEditing.copyWith(widgetWeekOpacity: next),
+    );
+  }
+
+  /// 保存组件框架不透明度，不改课程底色。
+  Future<void> setWeekWidgetSurfaceOpacity(int value) async {
+    final next = TimetableSettings.sanitizeOpacity(value);
+    if (_useService) return _svc.setWeekWidgetSurfaceOpacity(next);
+    final c = controller!;
+    await c.updateSettings(
+      c.settingsForEditing.copyWith(widgetWeekWidgetOpacity: next),
+    );
+  }
+
+  /// 保存独立于课表外观的周末选择。
+  Future<void> setWeekWidgetShowWeekend(bool value) async {
+    if (_useService) return _svc.setWeekWidgetShowWeekend(value);
+    final c = controller!;
+    await c.updateSettings(
+      c.settingsForEditing.copyWith(widgetWeekShowWeekend: value),
     );
   }
 }
@@ -234,9 +266,15 @@ class TimetableKeepAliveGuidePage extends StatelessWidget {
 }
 
 /// 卡片里的权限提示文案。
-String? reminderPermissionHint(NotifyPermissionStatus s, bool enabled) {
-  if (!enabled || !s.supported) return null;
+String? reminderPermissionHint(
+  NotifyPermissionStatus s,
+  bool enabled, {
+  bool nextDayEnabled = false,
+}) {
+  if (!(enabled || nextDayEnabled) || !s.supported) return null;
   if (!s.notificationsGranted) return TtSettingsText.permissionNotification;
-  if (!s.exactAlarmGranted) return TtSettingsText.permissionExactAlarm;
+  if (enabled && !s.exactAlarmGranted) {
+    return TtSettingsText.permissionExactAlarm;
+  }
   return null;
 }

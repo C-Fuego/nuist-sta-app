@@ -125,6 +125,17 @@ class AppNavigationController extends ChangeNotifier {
   /// 分支中是否存在详情页（普通对话框不改变底栏布局）。
   bool hasDetails(int index) => _branchObservers[index].hasDetails;
 
+  /// 分支实际最上层路由，包含 GoRouter 地址不反映的本地子页或弹层。
+  Route<dynamic>? topRouteInBranch(int index) =>
+      _branchObservers[index]._routes.lastOrNull;
+
+  /// 分支中是否存在活跃或正在退场的详情页；窄屏退场期间延后恢复底栏，避免动画中途重排。
+  bool hasVisibleDetails(int index) =>
+      _branchObservers[index].hasVisibleDetails;
+
+  /// 根导航器上是否存在全局弹层（如公告、更新、隐私弹窗等）。
+  bool get hasRouteAboveRoot => _rootObserver.hasRouteAboveRoot;
+
   /// 可见分支或全局弹层需要处理返回时，由 Flutter 接管 Android 系统返回。
   bool get canHandleBack =>
       _rootObserver.hasRouteAboveRoot || _backBranch != null;
@@ -256,8 +267,11 @@ class _PaneObserver extends NavigatorObserver {
 
   final AppNavigationController owner;
   final _routes = <Route<dynamic>>[];
+  final _exitingDetails = <Route<dynamic>>{};
 
   bool get hasDetails => _routes.skip(1).any((route) => route is PageRoute);
+
+  bool get hasVisibleDetails => hasDetails || _exitingDetails.isNotEmpty;
 
   // go_router 在壳路由上注册的 PopScope 用于保护嵌套栈，并不是全局弹层。
   bool get hasRouteAboveRoot => _routes.length > 1;
@@ -278,18 +292,32 @@ class _PaneObserver extends NavigatorObserver {
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _routes.remove(route);
+    if (route is PageRoute &&
+        route.animation != null &&
+        !route.animation!.isDismissed) {
+      _exitingDetails.add(route);
+      unawaited(
+        route.completed.whenComplete(() {
+          if (_exitingDetails.remove(route)) {
+            owner._notifyLater();
+          }
+        }),
+      );
+    }
     owner._notifyLater();
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     _routes.remove(route);
+    _exitingDetails.remove(route);
     owner._notifyLater();
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     final position = _routes.indexOf(oldRoute!);
+    _exitingDetails.remove(oldRoute);
     if (position >= 0) {
       if (newRoute == null) {
         _routes.removeAt(position);

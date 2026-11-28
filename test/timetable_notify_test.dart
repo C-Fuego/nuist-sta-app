@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,7 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:nuist_sta_app/core/logging/app_log.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_api.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_controller.dart';
+import 'package:nuist_sta_app/mini_apps/timetable/timetable_import_models.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_models.dart';
+import 'package:nuist_sta_app/mini_apps/timetable/timetable_next_day_reminder.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_notify_bridge.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_notify_plan.dart';
 import 'package:nuist_sta_app/mini_apps/timetable/timetable_notify_service.dart';
@@ -26,17 +29,37 @@ class _FakeBridge extends TimetableNotifyBridge {
   final scheduled = <List<Map<String, Object?>>>[];
   final widgets = <Map<String, Object?>>[];
   int cancels = 0;
+  bool scheduleResult = true;
+  bool widgetResult = true;
+  bool failNextWidget = false;
+  Completer<void>? scheduleGate;
+  Completer<void>? scheduleEntered;
+  void Function(Map<String, Object?>)? onWidgetUpdate;
 
   @override
-  Future<void> scheduleReminders(List<Map<String, Object?>> alarms) async =>
-      scheduled.add(alarms);
+  Future<bool> scheduleReminders(List<Map<String, Object?>> alarms) async {
+    if (scheduleEntered != null && !scheduleEntered!.isCompleted) {
+      scheduleEntered!.complete();
+    }
+    if (scheduleGate != null) await scheduleGate!.future;
+    scheduled.add(alarms);
+    return scheduleResult;
+  }
 
   @override
   Future<void> cancelReminders() async => cancels++;
 
   @override
-  Future<void> updateWidget(Map<String, Object?> payload) async =>
-      widgets.add(jsonDecode(jsonEncode(payload)) as Map<String, Object?>);
+  Future<bool> updateWidget(Map<String, Object?> payload) async {
+    if (failNextWidget) {
+      failNextWidget = false;
+      return false;
+    }
+    final decoded = jsonDecode(jsonEncode(payload)) as Map<String, Object?>;
+    widgets.add(decoded);
+    onWidgetUpdate?.call(decoded);
+    return widgetResult;
+  }
 
   @override
   Future<bool> requestNotificationPermission() async => true;
@@ -63,11 +86,23 @@ void main() {
       for (final result in WidgetPinResult.values) {
         messenger.setMockMethodCallHandler(channel, (call) async {
           expect(call.method, 'pinWidget');
-          expect(call.arguments, {'square': true});
+          expect(call.arguments, {'size': 'square'});
           return result.name;
         });
-        expect(await bridge.pinWidget(square: true), result);
+        expect(await bridge.pinWidget(size: WidgetPinSize.square), result);
       }
+    });
+
+    test('4×6 当周课表传递 week 尺寸', () async {
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        expect(call.method, 'pinWidget');
+        expect(call.arguments, {'size': 'week'});
+        return WidgetPinResult.requested.name;
+      });
+      expect(
+        await bridge.pinWidget(size: WidgetPinSize.week),
+        WidgetPinResult.requested,
+      );
     });
 
     test('原生失败保留方法与原因，且不记录小组件正文', () async {
@@ -87,7 +122,7 @@ void main() {
           },
         );
       });
-      await bridge.updateWidget({'title': '合成课程隐私文本'});
+      expect(await bridge.updateWidget({'title': '合成课程隐私文本'}), isFalse);
       final failed = records.singleWhere((r) => r['event'] == 'native.failed');
       expect((failed['attrs'] as Map)['endpoint'], 'notify.updateWidget');
       expect((failed['attrs'] as Map)['error_type'], 'PlatformException');
@@ -115,7 +150,7 @@ void main() {
           ],
         },
       );
-      await bridge.scheduleReminders([]);
+      expect(await bridge.scheduleReminders([]), isTrue);
       final event = records.singleWhere((r) => r['event'] == 'native.degraded');
       expect(event.toString(), contains('exact_alarm_permission_revoked'));
       expect(event.toString(), contains('SyntheticAlarm.kt:10'));
@@ -131,12 +166,21 @@ void main() {
           if (response is PlatformException) throw response;
           return response;
         });
-        expect(await bridge.pinWidget(square: false), WidgetPinResult.manual);
+        expect(
+          await bridge.pinWidget(size: WidgetPinSize.wide),
+          WidgetPinResult.manual,
+        );
       }
       messenger.setMockMethodCallHandler(channel, null);
-      expect(await bridge.pinWidget(square: false), WidgetPinResult.manual);
+      expect(
+        await bridge.pinWidget(size: WidgetPinSize.wide),
+        WidgetPinResult.manual,
+      );
       TimetableNotifyBridge.debugIsAndroid = false;
-      expect(await bridge.pinWidget(square: false), WidgetPinResult.manual);
+      expect(
+        await bridge.pinWidget(size: WidgetPinSize.wide),
+        WidgetPinResult.manual,
+      );
     });
   });
 
@@ -187,6 +231,17 @@ void main() {
       expect(plan.single.toJson()['fireAt'], '2026-10-20T07:45');
       expect(plan.single.toJson()['classStart'], '2026-10-20T08:00');
       expect(plan.single.title, '高数 即将上课');
+      expect(plan.single.body, '08:00 上课');
+
+      final withLoc = planReminders(
+        now: now,
+        leadMinutes: 15,
+        days: 1,
+        classesOn: (d) => d.day == 20
+            ? [_c('高数', DateTime(2026, 10, 20, 8), loc: 'A101')]
+            : [],
+      );
+      expect(withLoc.single.body, '08:00 · A101');
     });
 
     test('同一时间两门课合并为一条', () {
@@ -202,7 +257,15 @@ void main() {
       expect(plan, hasLength(1));
       expect(plan.single.names, ['英语', '物理']);
       expect(plan.single.title, '2 门课即将上课');
-      expect(plan.single.body, contains('A101 / B202'));
+      expect(plan.single.body, '10:10 · 英语、物理 · A101 / B202');
+
+      final noLoc = planReminders(
+        now: now,
+        leadMinutes: 10,
+        days: 1,
+        classesOn: (d) => d.day == 20 ? [_c('英语', s), _c('物理', s)] : [],
+      );
+      expect(noLoc.single.body, '10:10 · 英语、物理');
     });
 
     test('已过的提醒不补发', () {
@@ -283,6 +346,9 @@ void main() {
       final json = jsonDecode(jsonEncode(p)) as Map<String, dynamic>;
       expect(json['state'], 'ok');
       expect(json['hasCache'], true);
+      expect(json.containsKey('jwxtExpiresAt'), isFalse);
+      expect(json.containsKey('hasIndependentLocalData'), isFalse);
+      expect(json.containsKey('reason'), isFalse);
       final days = json['days'] as List;
       expect(days, hasLength(8));
       expect(days.first['date'], '2026-10-20');
@@ -295,30 +361,23 @@ void main() {
       expect(item['color'], 0xFFE91E63);
       expect(item['colorDark'], 0xFFAA1144);
       expect(item['courseId'], 'DS|01');
+      expect(item.containsKey('origin'), isFalse);
       expect(item['teachers'], ['张老师', '李老师']);
       expect(item['teacherFirst'], '张老师');
       expect(item['periodTime'], '第3-4节 10:10-11:50');
     });
 
-    test('教师：中英文逗号都能拆分并去空白、丢空项', () {
+    test('教师拆分与过滤：中英文逗号去空白、过滤网络教师、空值及 payload 映射', () {
       expect(splitTeachers('张三,李四，王五'), ['张三', '李四', '王五']);
       expect(splitTeachers(' 张三 ， , 李四 ,'), ['张三', '李四']);
       expect(widgetTeachers('张三，李四'), ['张三', '李四']);
-    });
-
-    test('教师：网络教师不进小组件', () {
-      expect(widgetTeachers('网络教师'), isEmpty);
-      expect(widgetTeachers('网络教师,张三'), ['张三']);
-      expect(widgetTeachers(' 网络教师 ，李四'), ['李四']);
-    });
-
-    test('教师：单个教师与空值', () {
       expect(widgetTeachers('张三'), ['张三']);
       expect(widgetTeachers(''), isEmpty);
       expect(widgetTeachers(' , ，'), isEmpty);
-    });
+      expect(widgetTeachers('网络教师'), isEmpty);
+      expect(widgetTeachers('网络教师,张三'), ['张三']);
+      expect(widgetTeachers(' 网络教师 ，李四'), ['李四']);
 
-    test('教师：payload 中只剩网络教师时为空列表与空串', () {
       final now = DateTime(2026, 10, 20, 9);
       Map item(String raw) {
         final p = buildWidgetPayload(
@@ -626,63 +685,68 @@ void main() {
     );
     final late = DateTime(2026, 10, 20, 23, 59);
 
-    test('4×2 之后① 有下一节', () {
+    test('2×2 之后行四种状态：有下一节、最后一节、明日首节与明日没课', () {
       final first = _c('英语', DateTime(2026, 10, 20, 8));
-      expect(widgetAfterText([evening, first], first.start), '18:00 晚课');
+      final hasNext = selectWidget2x2([evening, first], first.start);
+      expect(hasNext.main, same(first));
+      expect(hasNext.mainText, '英语');
+      expect(hasNext.main!.barColor, first.barColor);
+      expect(hasNext.after, same(evening));
+      expect(hasNext.after!.barColorDark, evening.barColorDark);
+      expect(hasNext.afterText, '晚课');
+      expect(hasNext.afterDetail, '18:00 教一-101');
+
+      final lastClass = selectWidget2x2([evening], evening.start);
+      expect(lastClass.main, same(evening));
+      expect(lastClass.after, isNull);
+      expect(lastClass.afterText, '今天最后一节');
+      expect(lastClass.afterDetail, isEmpty);
+
+      final tomorrow = selectWidget2x2([evening], late, tomorrowFirst: morning);
+      expect(tomorrow.main, isNull);
+      expect(tomorrow.mainText, '今天的课上完了');
+      expect(tomorrow.after, same(morning));
+      expect(tomorrow.after!.barColor, morning.barColor);
+      expect(tomorrow.after!.barColorDark, morning.barColorDark);
+      expect(tomorrow.afterText, '明天 08:00 高数');
+      expect(tomorrow.afterDetail, morning.location);
+
+      final noneTomorrow = selectWidget2x2(
+        [evening],
+        late,
+        tomorrowFirst: null,
+      );
+      expect(noneTomorrow.main, isNull);
+      expect(noneTomorrow.mainText, '今天的课上完了');
+      expect(noneTomorrow.after, isNull);
+      expect(noneTomorrow.afterText, '明天没课');
+      expect(noneTomorrow.afterDetail, isEmpty);
     });
 
-    test('4×2 之后② 今天最后一节', () {
-      expect(widgetAfterText([evening], evening.start), '今天最后一节');
-    });
-
-    test('2×2 ① 有下一节', () {
+    test('4×2 之后行：今日优先忽略明日注入，今日结束后显示明日首节或明日没课', () {
       final first = _c('英语', DateTime(2026, 10, 20, 8));
-      final plan = selectWidget2x2([evening, first], first.start);
-      expect(plan.main, same(first));
-      expect(plan.mainText, '英语');
-      expect(plan.main!.barColor, first.barColor);
-      expect(plan.after, same(evening));
-      expect(plan.after!.barColorDark, evening.barColorDark);
-      expect(plan.afterText, '晚课');
-      expect(plan.afterDetail, '18:00 教一-101');
-    });
-
-    test('2×2 ② 今天最后一节', () {
-      final plan = selectWidget2x2([evening], evening.start);
-      expect(plan.main, same(evening));
-      expect(plan.after, isNull); // 无课程即无竖条。
-      expect(plan.afterText, '今天最后一节');
-      expect(plan.afterDetail, isEmpty);
-    });
-
-    test('2×2 ③ 明天第一节(注入)', () {
-      final plan = selectWidget2x2([evening], late, tomorrowFirst: morning);
-      expect(plan.main, isNull);
-      expect(plan.mainText, '今天的课上完了');
-      expect(plan.after, same(morning));
-      expect(plan.after!.barColor, morning.barColor);
-      expect(plan.after!.barColorDark, morning.barColorDark);
-      expect(plan.afterText, '明天 08:00 高数');
-      expect(plan.afterDetail, morning.location);
-    });
-
-    test('2×2 ④ 明天没课', () {
-      final plan = selectWidget2x2([evening], late, tomorrowFirst: null);
-      expect(plan.main, isNull);
-      expect(plan.mainText, '今天的课上完了');
-      expect(plan.after, isNull);
-      expect(plan.afterText, '明天没课');
-      expect(plan.afterDetail, isEmpty);
-    });
-
-    test('4×2 之后③ 明天第一节(注入)', () {
+      for (final injected in <NotifyClass?>[null, morning]) {
+        expect(
+          widgetAfterText(
+            [evening, first],
+            first.start,
+            tomorrowFirst: injected,
+          ),
+          '18:00 晚课',
+        );
+        expect(
+          widgetAfterText([evening, first], first.end, tomorrowFirst: injected),
+          '今天最后一节',
+        );
+        expect(
+          widgetAfterText([evening], evening.start, tomorrowFirst: injected),
+          '今天最后一节',
+        );
+      }
       expect(
         widgetAfterText([evening], late, tomorrowFirst: morning),
         '明天 08:00 高数',
       );
-    });
-
-    test('4×2 之后④ 明天没课', () {
       expect(widgetAfterText([evening], late, tomorrowFirst: null), '明天没课');
       final payload = buildWidgetPayload(
         now: late,
@@ -719,28 +783,6 @@ void main() {
       expect(first['teachers'], isEmpty);
       expect(first['teacherFirst'], '');
       expect(first['nodes'], '第1-2节');
-    });
-
-    test('今天还有后续课 / 最后一节：优先今天，忽略明天注入值', () {
-      final first = _c('英语', DateTime(2026, 10, 20, 8));
-      for (final injected in <NotifyClass?>[null, morning]) {
-        expect(
-          widgetAfterText(
-            [evening, first],
-            first.start,
-            tomorrowFirst: injected,
-          ),
-          '18:00 晚课',
-        );
-        expect(
-          widgetAfterText([evening, first], first.end, tomorrowFirst: injected),
-          '今天最后一节',
-        );
-        expect(
-          widgetAfterText([evening], evening.start, tomorrowFirst: injected),
-          '今天最后一节',
-        );
-      }
     });
 
     test('23:59 下一次刷新为次日 00:01（原生排闹钟另加 1 秒）', () {
@@ -872,6 +914,8 @@ void main() {
     tearDown(() async {
       TimetableStore.debugDirectory = null;
       TimetableController.clock = TimetableApi.shanghaiToday;
+      TimetableController.debugBuildNextDayReminderInBackground = false;
+      TimetableController.bindingCheck = () async => false;
       TimetableController.fetchSnapshot = (term, {baseSettings}) =>
           TimetableApi.fetchTermSnapshot(term, baseSettings: baseSettings);
       c.debugReset();
@@ -951,6 +995,91 @@ void main() {
       final json = c.settings.toJson();
       expect(json.containsKey('widgetShowUpcoming'), isFalse);
       expect(TimetableSettings.fromJson(json).widgetShowCountdown, isFalse);
+    });
+
+    test('4×6 周末 payload 只在未单独设置时跟随外观', () async {
+      final b = _FakeBridge();
+      final s = svc(b);
+      Object? weekend(Map<String, Object?> payload) =>
+          ((payload['week'] as Map)['prefs'] as Map)['showWeekend'];
+
+      addTearDown(s.dispose);
+      await s.ensureStarted();
+      expect(weekend(b.widgets.single), isTrue);
+      final refresh = Completer<Map<String, Object?>>();
+      b.onWidgetUpdate = refresh.complete;
+      await c.updateSettings(c.settings.copyWith(showSaturday: false));
+      expect(
+        weekend(await refresh.future.timeout(const Duration(seconds: 5))),
+        isFalse,
+      );
+      b.onWidgetUpdate = null;
+      final savedDefault = await TimetableStore.readRawSettings();
+      expect(savedDefault.containsKey('widgetWeekShowWeekend'), isFalse);
+
+      await s.setWeekWidgetShowWeekend(true);
+      expect(weekend(b.widgets.last), isTrue);
+      final version = c.scheduleVersion;
+      await c.updateSettings(c.settings.copyWith(showSunday: false));
+      expect(c.scheduleVersion, version);
+      final savedOn = await TimetableStore.readSettings();
+      expect(savedOn.toJson()['widgetWeekShowWeekend'], isTrue);
+      expect(weekend(s.currentWidgetPayload()), isTrue);
+
+      await s.setWeekWidgetShowWeekend(false);
+      final versionAfterSwitch = c.scheduleVersion;
+      await c.updateSettings(
+        c.settings.copyWith(showSaturday: true, showSunday: true),
+      );
+      expect(c.scheduleVersion, versionAfterSwitch);
+      final savedOff = await TimetableStore.readSettings();
+      expect(savedOff.toJson()['widgetWeekShowWeekend'], isFalse);
+      expect(weekend(b.widgets.last), isFalse);
+
+      await s.dispose();
+      c.debugReset();
+      await c.ensureStarted();
+      expect(weekend(s.currentWidgetPayload()), isFalse);
+    });
+
+    test('4×6 设置保存后立即刷新共享 payload 的 week 段', () async {
+      await c.updateSettings(c.settings.copyWith(showSunday: false));
+      final b = _FakeBridge();
+      final s = svc(b);
+      final old = s.currentWidgetPayload();
+      await s.setWeekWidgetOpacity(60);
+      await s.setWeekWidgetSurfaceOpacity(70);
+      await s.setWeekWidgetShowWeekend(true);
+      expect(b.widgets, hasLength(3));
+      Map weekPrefs(Map payload) => (payload['week'] as Map)['prefs'] as Map;
+      expect(weekPrefs(b.widgets.first)['opacity'], 60);
+      expect(weekPrefs(b.widgets.first)['showWeekend'], isFalse);
+      expect(weekPrefs(b.widgets.first)['widgetOpacity'], 100);
+      expect(weekPrefs(b.widgets.last)['showWeekend'], isTrue);
+      expect(weekPrefs(b.widgets.last)['opacity'], 60);
+      expect(weekPrefs(b.widgets.last)['widgetOpacity'], 70);
+      expect(c.settings.widgetWeekOpacity, 60);
+      expect(c.settings.widgetWeekWidgetOpacity, 70);
+      expect(c.settings.widgetWeekShowWeekend, isTrue);
+      expect(b.widgets.last['version'], old['version']);
+      expect(b.widgets.last['days'], old['days']);
+      expect(b.widgets.last['prefs'], old['prefs']);
+      await s.setWeekWidgetOpacity(5);
+      await s.setWeekWidgetShowWeekend(false);
+      expect(c.settings.widgetWeekOpacity, 30);
+      expect(weekPrefs(b.widgets.last)['opacity'], 30);
+      expect(weekPrefs(b.widgets.last)['widgetOpacity'], 70);
+      expect(weekPrefs(b.widgets.last)['showWeekend'], isFalse);
+
+      await s.setWidgetShowLocation(false);
+      final payload = b.widgets.last;
+      final today = (payload['days'] as List).first as Map;
+      final week = ((payload['week'] as Map)['weeks'] as List).first as Map;
+      final monday = (week['days'] as List).first as Map;
+      expect((payload['prefs'] as Map)['showLocation'], isFalse);
+      expect((today['items'] as List).single['location'], isEmpty);
+      expect(weekPrefs(payload)['showLocation'], isTrue);
+      expect((monday['items'] as List).single['location'], '教一-101');
     });
 
     test('widgetCourseCount 读取：1–3 原样，其他回落 2；旧 widgetShowUpcoming 忽略', () {
@@ -1070,17 +1199,135 @@ void main() {
       }
     });
 
-    test('小组件 payload 来自控制器', () {
+    List<Map> weekItemsOn(Map<String, Object?> payload, String date) {
+      final weeks = (payload['week'] as Map)['weeks'] as List;
+      final day = weeks
+          .expand((week) => (week['days'] as List).cast<Map>())
+          .singleWhere((day) => day['date'] == date);
+      return (day['items'] as List).cast<Map>();
+    }
+
+    test('小组件 payload 来自控制器并包含 week 段：顶层版本不变，本周与下周各一份', () {
       final p = svc(_FakeBridge()).currentWidgetPayload();
+      expect(p['state'], 'ok');
+      expect(p['version'], 1);
       final today = (p['days'] as List).first as Map;
       expect(today['date'], '2026-09-07');
       expect(today['week'], 2);
-      final item = (today['items'] as List).single as Map;
+      final todayItem = (today['items'] as List).single as Map;
+      expect(todayItem['name'], '高数');
+      expect(todayItem['nodes'], '第1-2节');
+      expect(todayItem['teachers'], isEmpty);
+      expect(todayItem['teacherFirst'], '');
+
+      final week = p['week'] as Map;
+      expect((week['prefs'] as Map)['showWeekend'], isTrue);
+      expect(week['termStartMissing'], isFalse);
+      expect(week['periods'], isNotEmpty);
+      final weeks = week['weeks'] as List;
+      expect(weeks, hasLength(2));
+      expect((weeks.first as Map)['start'], '2026-09-07');
+      expect((weeks.last as Map)['start'], '2026-09-14');
+      final days = (weeks.first as Map)['days'] as List;
+      expect(days, hasLength(7));
+      final monday = days.first as Map;
+      expect(monday['date'], '2026-09-07');
+      final item = (monday['items'] as List).first as Map;
       expect(item['name'], '高数');
       expect(item['nodes'], '第1-2节');
-      expect(item['teachers'], isEmpty);
-      expect(item['teacherFirst'], '');
+      expect(item['start'], '2026-09-07T08:00');
+      expect(item['weekTag'], isNull);
+      expect(item['origin'], 'jwxt');
+    });
+
+    test('周组件标签按课程性质和单双周生成，不显示周段', () {
+      const cases = [
+        ('物理实验', CourseKind.standard, '0000011111111', null),
+        ('大学物理', CourseKind.lab, '1010101010101', '实验'),
+        ('通识课', CourseKind.pe, '0000011111111', '体育'),
+        ('线性代数', CourseKind.exam, '0000011111111', '考试'),
+        ('高数', CourseKind.standard, '1010101010101', '单周'),
+        ('大学英语', CourseKind.standard, '0101010101010', '双周'),
+      ];
+      c.debugSetSnapshot(
+        TimetableSnapshot(
+          courses: [
+            for (final (i, (name, kind, weeks, _)) in cases.indexed)
+              Course(
+                id: 'course-$i',
+                name: name,
+                slots: [
+                  CourseSlot(
+                    day: 1,
+                    startNode: 1,
+                    endNode: 2,
+                    weeks: weeks,
+                    kind: kind,
+                  ),
+                ],
+              ),
+          ],
+          periods: TimetableController.defaultPeriods(),
+          settings: TimetableSettings(termStartDate: termStart),
+        ),
+      );
+      final service = TimetableNotifyService(
+        controller: c,
+        clock: () => DateTime(2026, 10, 12, 6), // 第 7 周周一
+      );
+      final payload = service.currentWidgetPayload();
+      final items = [
+        ...weekItemsOn(payload, '2026-10-12'),
+        ...weekItemsOn(payload, '2026-10-19'),
+      ];
+      for (final (name, _, _, tag) in cases) {
+        final item = items.firstWhere((item) => item['name'] == name);
+        expect(item['weekTag'], tag, reason: name);
+      }
+    });
+
+    test('无开学日不是无课：只在 week 段明确标记', () {
+      c.debugSetSnapshot(
+        TimetableSnapshot(
+          periods: TimetableController.defaultPeriods(),
+          syncedAt: mon2,
+        ),
+      );
+      final p = svc(_FakeBridge()).currentWidgetPayload();
+      final week = p['week'] as Map;
+      expect(week['termStartMissing'], isTrue);
+      expect((week['weeks'] as List).first['week'], isNull);
+      expect(p.containsKey('termStartMissing'), isFalse);
       expect(p['state'], 'ok');
+    });
+
+    test('共享教务缓存带毫秒到期时间，满七天时过期', () {
+      final sevenDaysAgo = mon2.subtract(const Duration(days: 7));
+      Map<String, Object?> currentPayload(DateTime syncedAt) {
+        c.debugSetSnapshot(
+          TimetableSnapshot(
+            periods: TimetableController.defaultPeriods(),
+            settings: TimetableSettings(termStartDate: termStart),
+            syncedAt: syncedAt,
+          ),
+        );
+        return svc(_FakeBridge()).currentWidgetPayload();
+      }
+
+      final fresh = currentPayload(
+        sevenDaysAgo.add(const Duration(milliseconds: 1)),
+      );
+      final stale = currentPayload(sevenDaysAgo);
+      expect(fresh['state'], 'ok');
+      expect(fresh['jwxtExpiresAt'], mon2.millisecondsSinceEpoch + 1);
+      expect(weekItemsOn(fresh, '2026-09-07'), isEmpty);
+      expect(stale['state'], 'needsUpdate');
+      expect(stale['reason'], 'jwxtExpired');
+      expect(stale['hasCache'], isTrue);
+      expect(stale['lastSyncedAt'], sevenDaysAgo.millisecondsSinceEpoch);
+      final week = stale['week'] as Map;
+      expect(week['termStartMissing'], isFalse);
+      expect((week['weeks'] as List).first['start'], '2026-09-07');
     });
 
     test('小组件按时间混排课程、考试与其他日程，并携带类型', () async {
@@ -1118,6 +1365,48 @@ void main() {
       expect(items.first['location'], '社团活动室');
       expect(items.first['nodes'], isEmpty);
       expect(items.last['location'], '教二-201');
+      final week = (payload['week'] as Map)['weeks'] as List;
+      final monday = (week.first['days'] as List).first as Map;
+      final weekItems = (monday['items'] as List).cast<Map>();
+      expect(
+        weekItems.map((item) => item['name']),
+        items.map((item) => item['name']),
+      );
+      expect(
+        [weekItems.first['startNode'], weekItems.first['endNode']],
+        [0, 0],
+      );
+      expect([weekItems.last['startNode'], weekItems.last['endNode']], [3, 4]);
+      expect(weekItems.map((item) => item['kind']), [
+        'schedule',
+        'course',
+        'exam',
+      ]);
+      expect(weekItems.first['weekTag'], isNull);
+      expect(weekItems.last['weekTag'], isNull);
+    });
+
+    test('周组件落格日程携带节次与 schedule 类型，不依赖 weekTag', () async {
+      await c.addScheduleEvent(
+        ScheduleEvent(
+          id: 'study-group',
+          kind: ScheduleKind.other,
+          source: ScheduleSource.manual,
+          title: '小组讨论',
+          date: mon2,
+          start: const TimeOfDayMinutes(13, 45),
+          end: const TimeOfDayMinutes(15, 25),
+          location: '示例教室 C102',
+        ),
+      );
+      final payload = svc(_FakeBridge()).currentWidgetPayload();
+      final item = weekItemsOn(
+        payload,
+        formatDate(mon2),
+      ).singleWhere((item) => item['name'] == '小组讨论');
+      expect(item['kind'], 'schedule');
+      expect([item['startNode'], item['endNode']], [5, 6]);
+      expect(item['weekTag'], isNull);
     });
 
     test('关闭显示考试只隐藏考试，其他日程仍进入小组件', () async {
@@ -1237,14 +1526,10 @@ void main() {
       expect((today['items'] as List).single['name'], '唯一日程');
     });
 
-    test('未绑定门户时仍显示本地手动课程与日程', () async {
+    test('未绑定且开学日待定时仍显示本地手动课程与日程；混合课表在教务过期或解绑后退回仅显示本地', () async {
+      // 1) 未绑定且开学日待定时，本地手动课与日程仍可正常展示
       await c.handleLogout(clearJwxt: true);
-      c.debugSetSnapshot(
-        TimetableSnapshot(
-          periods: TimetableController.defaultPeriods(),
-          settings: TimetableSettings(termStartDate: termStart),
-        ),
-      );
+      expect(c.weekPending, isTrue);
       await c.addManualCourse(
         const Course(
           id: 'manual-only',
@@ -1263,17 +1548,89 @@ void main() {
           end: const TimeOfDayMinutes(13, 0),
         ),
       );
+      final localPayload = svc(_FakeBridge()).currentWidgetPayload();
+      final localItems = ((localPayload['days'] as List).first['items'] as List)
+          .cast<Map>();
+      expect(localPayload['state'], 'ok');
+      expect(localPayload['hasCache'], isTrue);
+      expect(localItems.map((item) => item['name']), ['本地课程', '本地日程']);
+      expect(localItems.map((item) => item['origin']), everyElement('local'));
+      expect(localPayload['hasIndependentLocalData'], isTrue);
+      expect(localPayload['lastSyncedAt'], isNull);
+      expect((localPayload['week'] as Map)['termStartMissing'], isTrue);
+      final localWeekItems = weekItemsOn(localPayload, '2026-09-07');
+      expect(localWeekItems.map((item) => item['name']), ['本地课程', '本地日程']);
+      expect(
+        localWeekItems.map((item) => item['origin']),
+        everyElement('local'),
+      );
 
-      final payload = svc(_FakeBridge()).currentWidgetPayload();
-      final today = (payload['days'] as List).first as Map;
-      final items = (today['items'] as List).cast<Map>();
+      // 2) 混合课表：有效期内合并展示，满 7 天过期或解绑保留缓存时只显示本地
+      await c.deleteManualCourse('manual-only');
+      await c.deleteScheduleEvent('local-event');
+      await c.refreshPortalBound();
+      await c.syncFromJwxt();
+      final synced = mon2.subtract(const Duration(days: 7));
+      final tuesday = DateTime(2026, 9, 8);
+      c.debugSetSnapshot(c.snapshot.copyWith(syncedAt: synced));
+      await c.addManualCourse(
+        const Course(
+          id: 'local-tuesday',
+          name: '本地编程课',
+          slots: [CourseSlot(day: 2, startNode: 5, endNode: 6, weeks: '11')],
+        ),
+      );
+      await c.replaceJwxtExams([
+        ScheduleEvent(
+          id: 'remote-exam',
+          kind: ScheduleKind.exam,
+          source: ScheduleSource.jwxt,
+          title: '教务考试',
+          date: tuesday,
+          start: const TimeOfDayMinutes(9, 0),
+          end: const TimeOfDayMinutes(10, 0),
+          courseCode: 'REMOTE',
+        ),
+      ]);
+      var now = mon2.subtract(const Duration(milliseconds: 1));
+      final service = TimetableNotifyService(controller: c, clock: () => now);
+      final fresh = service.currentWidgetPayload();
+      expect(fresh['state'], 'ok');
+      expect(fresh['jwxtExpiresAt'], mon2.millisecondsSinceEpoch);
+      expect(fresh['lastSyncedAt'], synced.millisecondsSinceEpoch);
+      expect((fresh['tomorrowFirst'] as Map)['origin'], 'jwxt');
+      final freshDays = fresh['days'] as List;
+      expect(freshDays.first['localTomorrowFirst']['name'], '本地编程课');
+      expect(weekItemsOn(fresh, '2026-09-07').single['origin'], 'jwxt');
+      final tuesdayItems = weekItemsOn(fresh, '2026-09-08');
+      expect(tuesdayItems.first['origin'], 'jwxt');
+      expect(tuesdayItems.last['origin'], 'local');
 
-      expect(payload['state'], 'ok');
-      expect(payload['hasCache'], isTrue);
-      expect(items.map((item) => item['name']), ['本地课程', '本地日程']);
+      void expectOnlyLocal(Map<String, Object?> payload) {
+        expect(payload['state'], 'ok');
+        expect(payload['reason'], isNull);
+        expect(payload['hasIndependentLocalData'], isTrue);
+        final days = payload['days'] as List;
+        expect(days.first['items'], isEmpty);
+        final tomorrow = payload['tomorrowFirst'] as Map;
+        expect(tomorrow['name'], '本地编程课');
+        expect(tomorrow['origin'], 'local');
+        expect(days.first['tomorrowFirst'], tomorrow);
+        expect(weekItemsOn(payload, '2026-09-07'), isEmpty);
+        expect(weekItemsOn(payload, '2026-09-08').single['origin'], 'local');
+        expect(jsonEncode(payload), isNot(contains('教务考试')));
+        expect(jsonEncode(payload), isNot(contains('高数')));
+      }
+
+      now = mon2;
+      expectOnlyLocal(service.currentWidgetPayload());
+      now = mon2.subtract(const Duration(milliseconds: 1));
+      await c.handleLogout(clearJwxt: false);
+      expectOnlyLocal(service.currentWidgetPayload());
     });
 
-    test('成功同步后没有课程但仅有教务考试时小组件仍可用', () async {
+    test('纯教务缓存可用性：空课表/仅有教务考试可用，过期/解绑/清空后分别报对应 reason', () async {
+      // 成功同步的空课表和仅有教务考试均为可用缓存
       c.debugSetSnapshot(
         TimetableSnapshot(
           periods: TimetableController.defaultPeriods(),
@@ -1281,6 +1638,11 @@ void main() {
           settings: TimetableSettings(termStartDate: termStart),
         ),
       );
+      var payload = svc(_FakeBridge()).currentWidgetPayload();
+      expect(payload['state'], 'ok');
+      expect(payload['hasCache'], isTrue);
+      expect(((payload['days'] as List).first as Map)['items'], isEmpty);
+
       await c.replaceJwxtExams([
         ScheduleEvent(
           id: 'jwxt-exam',
@@ -1294,32 +1656,37 @@ void main() {
           courseCode: 'EXAM001',
         ),
       ]);
-
-      final payload = svc(_FakeBridge()).currentWidgetPayload();
-      final today = (payload['days'] as List).first as Map;
-      final item = (today['items'] as List).single as Map;
-
+      payload = svc(_FakeBridge()).currentWidgetPayload();
+      final examItem =
+          (((payload['days'] as List).first as Map)['items'] as List).single
+              as Map;
       expect(payload['state'], 'ok');
       expect(payload['hasCache'], isTrue);
-      expect(item['name'], '教务考试');
-      expect(item['kind'], 'exam');
-    });
+      expect(examItem['name'], '教务考试');
+      expect(examItem['kind'], 'exam');
 
-    test('成功同步的空课表是可用缓存，不应提示需要更新', () {
-      c.debugSetSnapshot(
-        TimetableSnapshot(
-          periods: TimetableController.defaultPeriods(),
-          syncedAt: mon2,
-          settings: TimetableSettings(termStartDate: termStart),
-        ),
-      );
+      // 过期 / 解绑 / 清空后不可用
+      var now = mon2.add(const Duration(days: 7));
+      final service = TimetableNotifyService(controller: c, clock: () => now);
+      void expectUnavailable(String reason) {
+        final p = service.currentWidgetPayload();
+        expect(p['state'], 'needsUpdate');
+        expect(p['reason'], reason);
+        expect(p['hasIndependentLocalData'], isFalse);
+        expect(p['tomorrowFirst'], isNull);
+        expect(
+          (p['days'] as List).map((day) => day['items']),
+          everyElement(isEmpty),
+        );
+      }
 
-      final payload = svc(_FakeBridge()).currentWidgetPayload();
-      final today = (payload['days'] as List).first as Map;
-
-      expect(payload['state'], 'ok');
-      expect(payload['hasCache'], isTrue);
-      expect(today['items'], isEmpty);
+      expectUnavailable('jwxtExpired');
+      now = mon2;
+      expect(service.currentWidgetPayload()['state'], 'ok');
+      await c.handleLogout(clearJwxt: false);
+      expectUnavailable('jwxtUnbound');
+      await c.handleLogout(clearJwxt: true);
+      expectUnavailable('noSchedule');
     });
 
     test('考试与其他日程不进入上课提醒计划', () async {
@@ -1353,6 +1720,824 @@ void main() {
 
       expect(plan, hasLength(1));
       expect(plan.single.names, ['高数']);
+    });
+
+    test(
+      'reschedule 在 scheduleReminders 或 updateWidget 返回 false 时不缓存指纹并重试',
+      () async {
+        final b = _FakeBridge();
+        final s = svc(b);
+        addTearDown(s.dispose);
+
+        // 1) scheduleReminders 返回 false：不写入指纹，下次调用重试。
+        b.scheduleResult = false;
+        await s.reschedule();
+        expect(b.scheduled, hasLength(1));
+        expect(b.widgets, hasLength(1));
+
+        b.scheduleResult = true;
+        await s.reschedule();
+        expect(b.scheduled, hasLength(2));
+        expect(b.widgets, hasLength(2));
+
+        // 2) 两次均成功后命中指纹去重。
+        await s.reschedule();
+        expect(b.scheduled, hasLength(2));
+        expect(b.widgets, hasLength(2));
+
+        // 3) 条件变化后 updateWidget 返回 false：同样不写入指纹，下次重试。
+        await c.updateSettings(
+          c.settingsForEditing.copyWith(reminderEnabled: true),
+        );
+        b.widgetResult = false;
+        await s.reschedule();
+        expect(b.scheduled, hasLength(3));
+        expect(b.widgets, hasLength(3));
+
+        b.widgetResult = true;
+        await s.reschedule();
+        expect(b.scheduled, hasLength(4));
+        expect(b.widgets, hasLength(4));
+
+        await s.reschedule();
+        expect(b.scheduled, hasLength(4));
+        expect(b.widgets, hasLength(4));
+      },
+    );
+
+    test('导入主课表无门户绑定也可生成上课提醒，且解绑门户不取消其提醒', () async {
+      TimetableController.bindingCheck = () async => false;
+      await c.handleLogout(clearJwxt: true);
+      expect(c.portalBound, isFalse);
+
+      final imported = await c.importWakeupSchedule(
+        WakeupImportResult(
+          defaultName: '好友导入课表',
+          snapshot: TimetableSnapshot(
+            courses: const [
+              Course(
+                id: 'WAKEUP|01',
+                name: '线性代数',
+                source: CourseSource.manual,
+                slots: [
+                  CourseSlot(
+                    day: 1,
+                    startNode: 3,
+                    endNode: 4,
+                    weeks: '1111111111111111',
+                    location: '教二-202',
+                  ),
+                ],
+              ),
+            ],
+            periods: TimetableController.defaultPeriods(),
+            settings: TimetableSettings(
+              termCode: '2026-2027-1',
+              termStartDate: termStart,
+              termStartFromJwxt: true,
+            ),
+            syncedAt: termStart,
+          ),
+          courseCount: 1,
+          slotCount: 1,
+          exams: [
+            ScheduleEvent(
+              id: 'imported-exam',
+              kind: ScheduleKind.exam,
+              source: ScheduleSource.jwxt,
+              title: '导入考试',
+              date: mon2,
+              start: const TimeOfDayMinutes(14, 0),
+              end: const TimeOfDayMinutes(15, 0),
+            ),
+          ],
+        ),
+        name: '好友导入课表',
+        setAsPrimary: true,
+      );
+      await c.updateSettings(
+        c.settingsForEditing.copyWith(reminderEnabled: true),
+      );
+
+      final b = _FakeBridge();
+      final s = svc(b);
+      addTearDown(s.dispose);
+      expect(imported.syncedAt, isNull);
+      expect(c.snapshot.syncedAt, isNull);
+      expect(c.portalBound, isFalse);
+
+      void expectImportedWidget(
+        TimetableNotifyService service,
+        List<String> names,
+      ) {
+        final payload = service.currentWidgetPayload();
+        expect(payload['state'], 'ok');
+        expect(payload['hasIndependentLocalData'], isTrue);
+        expect(payload['lastSyncedAt'], isNull);
+        expect(payload.containsKey('jwxtExpiresAt'), isFalse);
+        final items = ((payload['days'] as List).first['items'] as List)
+            .cast<Map>();
+        expect(items.map((item) => item['name']), names);
+        expect(items.map((item) => item['origin']), everyElement('local'));
+        final weekItems = weekItemsOn(
+          payload,
+          (payload['days'] as List).first['date'] as String,
+        );
+        expect(weekItems.map((item) => item['name']), names);
+        expect(weekItems.map((item) => item['origin']), everyElement('local'));
+      }
+
+      expectImportedWidget(s, ['线性代数', '导入考试']);
+      expect(c.hasReminderScheduleSource, isTrue);
+
+      final planBeforeUnbind = s.currentPlan();
+      expect(planBeforeUnbind, hasLength(1));
+      expect(planBeforeUnbind.single.names, ['线性代数']);
+
+      // 解绑门户时主课表为导入课表：不立即取消提醒，且计划仍保留。
+      await c.handleLogout(clearJwxt: true);
+      await pumpEventQueue();
+      expect(b.cancels, 0);
+      expect(c.hasReminderScheduleSource, isTrue);
+      final planAfterUnbind = s.currentPlan();
+      expect(planAfterUnbind, hasLength(1));
+      expect(planAfterUnbind.single.names, ['线性代数']);
+      expectImportedWidget(s, ['线性代数', '导入考试']);
+
+      // 模拟旧版本已经把导入时间写入快照，重启后不应当作过期的教务缓存。
+      final legacySnapshot = c.snapshot.copyWith(syncedAt: termStart);
+      await TimetableStore.withScheduleScope(
+        imported.id,
+        () => TimetableStore.saveSnapshot(legacySnapshot),
+      );
+      c.debugReset();
+      await c.ensureStarted();
+      expect(c.primaryScheduleId, imported.id);
+      expect(c.snapshot.syncedAt, isNull);
+      expect(c.portalBound, isFalse);
+      final later = TimetableNotifyService(
+        controller: c,
+        clock: () => mon2.add(const Duration(days: 7)),
+      );
+      expectImportedWidget(later, ['线性代数']);
+    });
+
+    test('跨自然日与失败恢复后重排；同日权限跳转清指纹缓存', () async {
+      var now = DateTime(2026, 9, 7, 8);
+      final b = _FakeBridge();
+      final s = TimetableNotifyService(
+        controller: c,
+        bridge: b,
+        clock: () => now,
+      );
+      addTearDown(s.dispose);
+
+      await s.reschedule();
+      await s.reschedule();
+      expect(b.scheduled, hasLength(1));
+      expect(b.widgets, hasLength(1));
+
+      now = DateTime(2026, 9, 8, 8);
+      await s.reschedule();
+      expect(b.scheduled, hasLength(2));
+      expect(b.widgets, hasLength(2));
+
+      now = DateTime(2026, 9, 9, 8);
+      b.failNextWidget = true;
+      await s.reschedule();
+      expect(b.scheduled, hasLength(3));
+      expect(b.widgets, hasLength(2));
+
+      await s.reschedule();
+      expect(b.scheduled, hasLength(4));
+      expect(b.widgets, hasLength(3));
+
+      await s.openExactAlarmSettings();
+      await s.reschedule();
+      expect(b.scheduled, hasLength(5));
+      expect(b.widgets, hasLength(4));
+
+      await s.openNotificationSettings();
+      await s.reschedule();
+      expect(b.scheduled, hasLength(6));
+      expect(b.widgets, hasLength(5));
+    });
+
+    test('同日跨过 syncedAt + 7 天过期边界时重排并更新小组件为 needsUpdate', () async {
+      final syncedAt = DateTime(2026, 9, 7, 8);
+      c.debugSetSnapshot(c.snapshot.copyWith(syncedAt: syncedAt));
+      await c.refreshPortalBound();
+
+      var now = DateTime(2026, 9, 14, 7, 59);
+      final b = _FakeBridge();
+      final s = TimetableNotifyService(
+        controller: c,
+        bridge: b,
+        clock: () => now,
+      );
+      addTearDown(s.dispose);
+
+      await s.reschedule();
+      expect(b.widgets, hasLength(1));
+      expect(b.widgets.last['state'], 'ok');
+
+      now = DateTime(2026, 9, 14, 8, 1);
+      await s.reschedule();
+      expect(b.scheduled, hasLength(2));
+      expect(b.widgets, hasLength(2));
+      expect(b.widgets.last['state'], 'needsUpdate');
+    });
+
+    test('并发 reschedule 在途发生设置变更时，不会写入过时指纹覆盖新状态', () async {
+      final b = _FakeBridge();
+      final gate = Completer<void>();
+      final entered = Completer<void>();
+      b.scheduleGate = gate;
+      b.scheduleEntered = entered;
+
+      final s = svc(b);
+      addTearDown(s.dispose);
+
+      final first = s.reschedule();
+      await entered.future;
+
+      await c.updateSettings(
+        c.settingsForEditing.copyWith(reminderEnabled: true),
+      );
+      gate.complete();
+      b.scheduleGate = null;
+      b.scheduleEntered = null;
+      await first;
+
+      await s.reschedule();
+      expect(b.scheduled, hasLength(2));
+      expect(b.widgets, hasLength(2));
+    });
+
+    test('开启后台 Isolate 计算明日提醒时生成 400 天且不扰动缓存', () async {
+      const channel = MethodChannel('nuist/timetable_next_day');
+      Map<Object?, Object?>? sent;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'update') {
+              sent = call.arguments as Map<Object?, Object?>;
+            }
+            return {'diagnostics': <Object?>[]};
+          });
+      addTearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+      });
+
+      TimetableController.debugBuildNextDayReminderInBackground = true;
+      await c.refreshPortalBound();
+      final dayCells = c.cellsForDay(2, 1);
+
+      await c.updateNextDayReminder();
+      expect(sent?['enabled'], isTrue);
+      final payloads = sent?['payloads'] as Map<Object?, Object?>;
+      expect(payloads, hasLength(400));
+      expect(c.cellsForDay(2, 1), same(dayCells));
+    });
+  });
+
+  group('明日提醒与 400 天冷启动排程', () {
+    TodayCourseItem reminderCourse(
+      int node, {
+      String name = '测试课程',
+      String location = '',
+    }) => TodayCourseItem(
+      course: Course(id: 'mock-$node', name: name),
+      slot: CourseSlot(
+        day: 2,
+        startNode: node,
+        endNode: node + 1,
+        weeks: '1',
+        location: location,
+      ),
+      status: TodayCourseStatus.upcoming,
+    );
+
+    const reminderPeriods = [
+      PeriodTime(node: 1, start: '08:00', end: '08:45'),
+      PeriodTime(node: 3, start: '10:10', end: '10:55'),
+      PeriodTime(node: 5, start: '13:45', end: '14:30'),
+      PeriodTime(node: 7, start: '15:25', end: '16:10'),
+    ];
+    final weekday = DateTime(2026, 10, 27);
+    final saturday = DateTime(2026, 10, 31);
+
+    NextDayReminderPayload? payload(
+      List<TodayCourseItem> courses, {
+      DateTime? date,
+      bool loggedIn = true,
+      bool hasCache = true,
+      bool outsideTerm = false,
+    }) => buildNextDayReminder(
+      tomorrow: date ?? weekday,
+      courses: courses,
+      periods: reminderPeriods,
+      loggedIn: loggedIn,
+      hasCache: hasCache,
+      outsideTerm: outsideTerm,
+    );
+
+    test('冷启动本地课程先就绪，400天排程与未回执原生任务不阻塞数据入口', () async {
+      final c = TimetableController.instance;
+      final tmp = await Directory.systemTemp.createTemp('tt_start_ready');
+      final originalBinding = TimetableController.bindingCheck;
+      final originalClock = TimetableController.syncClock;
+      const channel = MethodChannel('nuist/timetable_next_day');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final nativeDone = Completer<void>();
+      var channelCalls = 0;
+      final readyCalls = <int>[];
+      messenger.setMockMethodCallHandler(channel, (_) async {
+        channelCalls++;
+        await nativeDone.future;
+        return {'diagnostics': <Object?>[]};
+      });
+      void ready() {
+        if (c.hasCourses) readyCalls.add(channelCalls);
+      }
+
+      addTearDown(() async {
+        c.removeListener(ready);
+        c.debugReset();
+        if (!nativeDone.isCompleted) nativeDone.complete();
+        messenger.setMockMethodCallHandler(channel, null);
+        TimetableController.bindingCheck = originalBinding;
+        TimetableController.syncClock = originalClock;
+        TimetableStore.debugDirectory = null;
+        await tmp.delete(recursive: true);
+      });
+      TimetableStore.debugDirectory = tmp;
+      TimetableController.bindingCheck = () async => true;
+      TimetableController.syncClock = () => DateTime(2026, 8, 31);
+      c.debugReset();
+      expect(c.isInitialized, isFalse);
+      await TimetableStore.saveSnapshot(
+        TimetableSnapshot(
+          courses: [
+            Course(
+              id: 'local',
+              name: '本地合成课',
+              slots: [
+                CourseSlot(day: 1, startNode: 1, endNode: 2, weeks: '1' * 20),
+              ],
+            ),
+          ],
+          periods: TimetableController.defaultPeriods(),
+          settings: TimetableSettings(termStartDate: DateTime(2026, 8, 31)),
+          syncedAt: DateTime(2026, 8, 31),
+        ),
+      );
+      c.addListener(ready);
+      await c.ensureStarted();
+      expect(c.isInitialized, isTrue);
+      expect(c.hasCourses, isTrue);
+      expect(readyCalls, [0]);
+      expect(channelCalls, 0);
+      await c.updateNextDayReminder();
+      expect(channelCalls, 1);
+      expect(nativeDone.isCompleted, isFalse);
+      nativeDone.complete();
+      await pumpEventQueue();
+      await c.updateNextDayReminder();
+      expect(channelCalls, 1);
+    });
+
+    test('启动未完成时保持未初始化，绑定准备失败不会把冷数据当成可直接展示', () async {
+      final c = TimetableController.instance;
+      final tmp = await Directory.systemTemp.createTemp('tt_init_gate');
+      final originalBinding = TimetableController.bindingCheck;
+      final reached = Completer<void>();
+      final gate = Completer<bool>();
+      TimetableStore.debugDirectory = tmp;
+      c.debugReset();
+      TimetableController.bindingCheck = () {
+        reached.complete();
+        return gate.future;
+      };
+      addTearDown(() async {
+        c.debugReset();
+        TimetableController.bindingCheck = originalBinding;
+        TimetableStore.debugDirectory = null;
+        if (!gate.isCompleted) gate.complete(false);
+        await tmp.delete(recursive: true);
+      });
+      final startup = c.ensureStarted();
+      final failed = expectLater(startup, throwsA(isA<StateError>()));
+      await reached.future;
+      expect(c.isInitialized, isFalse);
+      gate.completeError(StateError('合成绑定读取失败'));
+      await failed;
+      expect(c.isInitialized, isFalse);
+      TimetableController.bindingCheck = () async => false;
+      await c.ensureStarted();
+      expect(c.isInitialized, isTrue);
+      c.debugReset();
+      expect(c.isInitialized, isFalse);
+    });
+
+    test('明日提醒设置默认值、JSON/偏好合并及 21:00–23:30 档位校验', () {
+      for (final s in [
+        const TimetableSettings(),
+        TimetableSettings.fromJson({}),
+      ]) {
+        expect(s.nextDayReminderEnabled, isTrue);
+        expect(s.nextDayReminderMinute, 1320);
+        expect(s.reminderEnabled, isFalse);
+      }
+
+      final s = const TimetableSettings().copyWith(
+        nextDayReminderEnabled: false,
+        nextDayReminderMinute: 1410,
+        reminderEnabled: true,
+      );
+      final decoded = TimetableSettings.fromJson(s.toJson());
+      expect(decoded.toJson(), s.toJson());
+      final merged = const TimetableSettings(termCode: 'mock')
+          .withDisplayPrefsFrom(decoded);
+      expect(merged.termCode, 'mock');
+      expect(merged.nextDayReminderEnabled, isFalse);
+      expect(merged.nextDayReminderMinute, 1410);
+      expect(merged.reminderEnabled, isTrue);
+
+      for (final v in TimetableSettings.nextDayReminderOptions) {
+        expect(
+          TimetableSettings.fromJson({'nextDayReminderMinute': v})
+              .nextDayReminderMinute,
+          v,
+        );
+      }
+      for (final v in [null, '22:00', 1259, 1261, 1440, 1320.5]) {
+        expect(
+          TimetableSettings.fromJson({'nextDayReminderMinute': v})
+              .nextDayReminderMinute,
+          1320,
+        );
+      }
+    });
+
+    test('明日提醒空态、周末与假期文案（不含冗余页脚与暖心文案）', () {
+      expect(payload([], loggedIn: false), isNull);
+      expect(payload([], hasCache: false), isNull);
+      expect(payload([], hasCache: false, outsideTerm: true), isNull);
+
+      final empty = payload([])!;
+      expect(empty.title, '明天没课');
+      expect(empty.body, '好好休息');
+
+      final weekendEmpty = payload([], date: saturday)!;
+      expect(weekendEmpty.title, '周末没课');
+
+      final weekendSingle = payload([reminderCourse(3)], date: saturday)!;
+      expect(weekendSingle.title, '周末有课');
+      expect(weekendSingle.body, '10:10 · 测试课程');
+      expect(
+        payload([reminderCourse(3), reminderCourse(7)], date: saturday)!.body,
+        '首节 10:10 · 测试课程；还有 1 节',
+      );
+
+      final holiday = payload([], outsideTerm: true)!;
+      expect(holiday.title, '明天没课');
+      expect(holiday.body, '假期模式');
+
+      for (final p in [empty, weekendEmpty, weekendSingle, holiday]) {
+        expect(p.title.runes.length, lessThanOrEqualTo(8));
+        expect(p.warmLine, isNull);
+        expect(p.toJson().containsKey('footer'), isFalse);
+        expect(p.toJson().containsKey('warmLine'), isFalse);
+      }
+    });
+
+    test('明日提醒早八、非早八首节、多门课排序与正文格式', () {
+      final early = payload([reminderCourse(1, location: '测试教室')])!;
+      expect(early.title, '明天早八');
+      expect(early.body, '第1–2节 · 测试课程 · 测试教室');
+      expect(payload([reminderCourse(2)])!.title, '明天早八');
+
+      for (final node in [3, 5, 7]) {
+        final p = payload([reminderCourse(node)])!;
+        expect(p.title, '明天第$node节开始');
+        expect(
+          p.body,
+          '${reminderPeriods.firstWhere((p) => p.node == node).start} · 测试课程',
+        );
+        expect(p.warmLine, isNull);
+      }
+      expect(payload([reminderCourse(9)])!.body, '第9节 · 测试课程');
+
+      final multiEarly = payload([
+        reminderCourse(7),
+        reminderCourse(1, name: '第一门'),
+      ])!;
+      expect(multiEarly.title, '明天早八');
+      expect(multiEarly.body, '第1–2节 · 第一门；还有 1 节');
+      expect(multiEarly.toJson().containsKey('footer'), isFalse);
+      expect(multiEarly.toJson().containsKey('warmLine'), isFalse);
+
+      final multiEarlyWithLoc = payload([
+        reminderCourse(5),
+        reminderCourse(1, location: '测试教室'),
+      ])!;
+      expect(multiEarlyWithLoc.title, '明天早八');
+      expect(multiEarlyWithLoc.body, '第1–2节 · 测试课程 · 测试教室；还有 1 节');
+
+      final multiNonEarly = payload([reminderCourse(7), reminderCourse(3)])!;
+      expect(multiNonEarly.title, '明天有 2 节课');
+      expect(multiNonEarly.body, '首节 10:10 · 测试课程；还有 1 节');
+      expect(multiNonEarly.title.runes.length, lessThanOrEqualTo(8));
+    });
+
+    test('明日提醒体育项目按课程类型显示，长课名截断且折叠换行', () {
+      final item = reminderCourse(3, name: '体育（3）');
+      final pe = item.course.copyWith(projectName: '射箭');
+      final named = TodayCourseItem(
+        course: pe,
+        slot: item.slot,
+        status: item.status,
+      );
+      expect(payload([named])!.body, '10:10 · 体育·射箭');
+      expect(payload([item])!.body, '10:10 · 体育（3）');
+      expect(pe.name, '体育（3）');
+
+      for (final kind in CourseKind.values) {
+        final changed = TodayCourseItem(
+          course: item.course.copyWith(projectName: '篮球'),
+          slot: item.slot.copyWith(kind: kind),
+          status: item.status,
+        );
+        expect(
+          payload([changed])!.body,
+          kind == CourseKind.pe ? '10:10 · 体育·篮球' : '10:10 · 体育（3）',
+        );
+      }
+
+      final longLine = payload([
+        reminderCourse(3, name: '${'长' * 30}\n课程', location: '测试\n教室'),
+      ])!;
+      expect(longLine.body, contains('…'));
+      expect(longLine.body, isNot(contains('\n')));
+    });
+
+    test('所选时间起至23:59补推，同一自然日去重，午夜不补昨天', () {
+      bool due(
+        DateTime now, {
+        String? last,
+        bool enabled = true,
+        int minute = 1320,
+      }) => nextDayReminderDue(
+        now: now,
+        enabled: enabled,
+        minuteOfDay: minute,
+        lastEveNotifyDate: last,
+      );
+      expect(due(DateTime(2026, 10, 27, 21, 59)), isFalse);
+      expect(due(DateTime(2026, 10, 27, 22)), isTrue);
+      expect(due(DateTime(2026, 10, 27, 23, 59, 59)), isTrue);
+      expect(due(DateTime(2026, 10, 27, 23), last: '2026-10-27'), isFalse);
+      expect(due(DateTime(2026, 10, 27, 23), enabled: false), isFalse);
+      expect(due(DateTime(2026, 10, 28), last: '2026-10-27'), isFalse);
+      expect(due(DateTime(2026, 10, 28, 22), last: '2026-10-27'), isTrue);
+      expect(due(DateTime(2026, 10, 27, 21), minute: 1260), isTrue);
+      expect(nextDayReminderDateKey(DateTime(2026, 1, 2, 23)), '2026-01-02');
+    });
+
+    test('400 天提醒保留学期末调课，假期不查询课程或挤掉近期网格缓存', () async {
+      final c = TimetableController.instance;
+      final tmp = await Directory.systemTemp.createTemp('tt_reminder');
+      final originalBindingCheck = TimetableController.bindingCheck;
+      final originalClock = TimetableController.syncClock;
+      const channel = MethodChannel('nuist/timetable_next_day');
+      Map<Object?, Object?>? configuration;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            if (call.method == 'update') {
+              configuration = call.arguments as Map<Object?, Object?>;
+            }
+            return null;
+          });
+      addTearDown(() async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null);
+        TimetableController.bindingCheck = originalBindingCheck;
+        TimetableController.syncClock = originalClock;
+        TimetableStore.debugDirectory = null;
+        c.debugReset();
+        await tmp.delete(recursive: true);
+      });
+      TimetableStore.debugDirectory = tmp;
+      TimetableController.bindingCheck = () async => true;
+      TimetableController.syncClock = () => DateTime(2027, 1, 16);
+      c.debugReset();
+      c.debugSetSnapshot(
+        TimetableSnapshot(
+          courses: [
+            Course(
+              id: 'reminder-course',
+              name: '调课后的课程',
+              slots: [
+                CourseSlot(day: 1, startNode: 1, endNode: 2, weeks: '1' * 20),
+              ],
+            ),
+          ],
+          periods: TimetableController.defaultPeriods(),
+          settings: TimetableSettings(termStartDate: DateTime(2026, 8, 31)),
+        ),
+      );
+      await c.addDaySwap(DateTime(2027, 1, 11), DateTime(2027, 1, 17));
+      final lastDayCells = c.cellsForDay(20, 7);
+      expect(lastDayCells.single.course.name, '调课后的课程');
+      await c.refreshPortalBound();
+      await c.updateNextDayReminder();
+      expect(configuration?['enabled'], isTrue);
+      final payloads = configuration!['payloads'] as Map<Object?, Object?>;
+      expect(payloads.length, 400);
+      final lastDay = payloads['2027-01-16'] as Map<Object?, Object?>;
+      expect(lastDay['title'], '周末有课');
+      expect(lastDay['body'], contains('调课后的课程'));
+      final holiday = payloads['2027-01-17'] as Map<Object?, Object?>;
+      expect(holiday['title'], '明天没课');
+      expect(holiday['body'], '假期模式');
+      expect(c.cellsForDay(20, 7), same(lastDayCells));
+    });
+
+    test('提醒排程分批让出 UI、合并变更并保留缓存，次日和关闭及时更新', () async {
+      final c = TimetableController.instance;
+      final tmp = await Directory.systemTemp.createTemp('tt_reminder_batch');
+      final originalBindingCheck = TimetableController.bindingCheck;
+      final originalClock = TimetableController.syncClock;
+      var now = DateTime(2026, 8, 31);
+      const channel = MethodChannel('nuist/timetable_next_day');
+      final configurations = <Map<Object?, Object?>>[];
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'update') {
+          configurations.add(call.arguments as Map<Object?, Object?>);
+        }
+        return {'diagnostics': <Object?>[]};
+      });
+      addTearDown(() async {
+        c.debugReset();
+        messenger.setMockMethodCallHandler(channel, null);
+        TimetableController.bindingCheck = originalBindingCheck;
+        TimetableController.syncClock = originalClock;
+        TimetableStore.debugDirectory = null;
+        await tmp.delete(recursive: true);
+      });
+      TimetableStore.debugDirectory = tmp;
+      TimetableController.bindingCheck = () async => true;
+      TimetableController.syncClock = () => now;
+      c.debugReset();
+      TimetableSnapshot snapshot(String name) => TimetableSnapshot(
+        courses: [
+          Course(
+            id: 'batch-course',
+            name: name,
+            slots: [
+              CourseSlot(day: 2, startNode: 1, endNode: 2, weeks: '1' * 20),
+            ],
+          ),
+        ],
+        periods: TimetableController.defaultPeriods(),
+        settings: TimetableSettings(termStartDate: now),
+      );
+      c.debugSetSnapshot(snapshot('更新前的课程'));
+      await c.refreshPortalBound();
+      final initial = c.updateNextDayReminder();
+      expect(c.updateNextDayReminder(), same(initial));
+      var yielded = false;
+      await Future<void>.delayed(Duration.zero, () {
+        yielded = true;
+        c.debugSetSnapshot(snapshot('更新后的课程'));
+      });
+      await initial;
+      await pumpEventQueue();
+      expect(yielded, isTrue);
+      expect(configurations, hasLength(1));
+      final payloads = configurations.single['payloads'] as Map;
+      expect(payloads, hasLength(400));
+      expect((payloads['2026-08-31'] as Map)['body'], contains('更新后的课程'));
+      final visibleCells = c.cellsForDay(1, 2);
+      await c.updateNextDayReminder();
+      await c.updateSettings(c.settingsForEditing.copyWith(showTeacher: false));
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations.last['payloads'], equals(payloads));
+      expect(configurations, hasLength(1));
+      expect(c.cellsForDay(1, 2), same(visibleCells));
+
+      now = DateTime(2026, 9, 1);
+      final beforeDateChange = configurations.length;
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations, hasLength(beforeDateChange + 1));
+      expect((configurations.last['payloads'] as Map).keys.first, '2026-09-01');
+      expect(c.cellsForDay(1, 2), same(visibleCells));
+
+      final beforeDisable = configurations.length;
+      await c.updateSettings(
+        c.settingsForEditing.copyWith(nextDayReminderEnabled: false),
+      );
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations, hasLength(beforeDisable + 1));
+      expect(configurations.last['enabled'], isFalse);
+      expect(configurations.last['payloads'], isEmpty);
+    });
+
+    test('提醒原生失败后可重试，成功后相同配置不再重复发送', () async {
+      final c = TimetableController.instance;
+      const channel = MethodChannel('nuist/timetable_next_day');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      var calls = 0;
+      messenger.setMockMethodCallHandler(channel, (_) async {
+        calls++;
+        if (calls == 1) {
+          throw PlatformException(code: 'storage', message: '合成保存失败');
+        }
+        return {'diagnostics': <Object?>[]};
+      });
+      addTearDown(() {
+        c.debugReset();
+        messenger.setMockMethodCallHandler(channel, null);
+      });
+      c.debugReset();
+      c.debugSetSnapshot(const TimetableSnapshot());
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(calls, 1);
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(calls, 2);
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(calls, 2);
+    });
+
+    test('修改 settings.maxWeeks 会失效 400 天明日提醒缓存并重算', () async {
+      final c = TimetableController.instance;
+      final tmp = await Directory.systemTemp.createTemp('tt_reminder_maxweeks');
+      final originalBindingCheck = TimetableController.bindingCheck;
+      final originalClock = TimetableController.syncClock;
+      const channel = MethodChannel('nuist/timetable_next_day');
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final configurations = <Map<Object?, Object?>>[];
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'update') {
+          configurations.add(call.arguments as Map<Object?, Object?>);
+        }
+        return {'diagnostics': <Object?>[]};
+      });
+      addTearDown(() async {
+        c.debugReset();
+        messenger.setMockMethodCallHandler(channel, null);
+        TimetableController.bindingCheck = originalBindingCheck;
+        TimetableController.syncClock = originalClock;
+        TimetableStore.debugDirectory = null;
+        await tmp.delete(recursive: true);
+      });
+      TimetableStore.debugDirectory = tmp;
+      TimetableController.bindingCheck = () async => true;
+      TimetableController.syncClock = () => DateTime(2027, 1, 16);
+      c.debugReset();
+      c.debugSetSnapshot(
+        TimetableSnapshot(
+          courses: [
+            Course(
+              id: 'week21-course',
+              name: '第21周课程',
+              slots: [
+                CourseSlot(day: 1, startNode: 1, endNode: 2, weeks: '1' * 22),
+              ],
+            ),
+          ],
+          periods: TimetableController.defaultPeriods(),
+          settings: TimetableSettings(
+            termStartDate: DateTime(2026, 8, 31),
+            maxWeeks: 20,
+          ),
+        ),
+      );
+      await c.refreshPortalBound();
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations, hasLength(1));
+
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations, hasLength(1));
+
+      await c.updateSettings(c.settingsForEditing.copyWith(maxWeeks: 22));
+      await c.updateNextDayReminder();
+      await pumpEventQueue();
+      expect(configurations, hasLength(2));
     });
   });
 }

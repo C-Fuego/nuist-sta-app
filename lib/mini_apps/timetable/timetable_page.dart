@@ -10,6 +10,7 @@ import 'timetable_schedule_event.dart';
 import 'timetable_change_alert.dart';
 import 'timetable_controller.dart';
 import 'timetable_export_page.dart';
+import 'timetable_notify_bridge.dart' show WidgetPinSize;
 import 'timetable_import_page.dart';
 import 'timetable_perf.dart';
 import 'timetable_settings_page.dart';
@@ -20,10 +21,28 @@ import 'timetable_week_grid.dart';
 
 /// 课表周视图主页：顶栏 + PageView 翻周 + 网格。
 class TimetablePage extends StatefulWidget {
-  const TimetablePage({super.key, this.focusTomorrow = false, this.focusEvent});
+  const TimetablePage({
+    super.key,
+    this.focusTomorrow = false,
+    this.focusTomorrowToken,
+    this.focusNextWeek = false,
+    this.openWidgetSettings = false,
+    this.widgetLaunchRequest,
+    this.focusEvent,
+  });
 
   /// 从明日通知进入时定位到明天所在周。
   final bool focusTomorrow;
+
+  /// 重复点击明日通知时的去重令牌，变化后再次定位到明天所在周。
+  final int? focusTomorrowToken;
+
+  /// 当周组件入口：定位下周或打开组件设置。
+  final bool focusNextWeek;
+  final bool openWidgetSettings;
+
+  /// 热启动的每次组件操作，即使 URI 相同也可重新处理。
+  final Object? widgetLaunchRequest;
 
   /// 从考试安排进入时，定位并短暂强调这一场考试。
   final ScheduleEvent? focusEvent;
@@ -43,9 +62,11 @@ class _TimetablePageState extends State<TimetablePage> {
   Widget? _weekPager;
   double? _dragStartPage;
   bool _viewingWeekCleared = false;
-  bool _syncAlertQueued = false;
-  bool _syncAlertScheduled = false;
-  bool _openingEntryDetail = true;
+  late final TimetableChangeAlertCoordinator _changeAlertCoordinator;
+  int _entryOverlayDepth = 1;
+  bool get _openingEntryDetail => _entryOverlayDepth > 0;
+  bool _pushingWidgetSettings = false;
+  bool _localOverlayOpen = false;
   ScheduleEvent? _focusedEvent;
   bool _eventFocusRevealed = false;
   String? _focusUnavailableMessage;
@@ -68,17 +89,46 @@ class _TimetablePageState extends State<TimetablePage> {
   void initState() {
     super.initState();
     TimetablePerf.start();
+    _changeAlertCoordinator = TimetableChangeAlertCoordinator(
+      resolveContext: () => mounted ? context : null,
+      resolveController: () => _controller,
+      canPresent: () =>
+          _ready &&
+          !_viewingWeekCleared &&
+          !_openingEntryDetail &&
+          !_pushingWidgetSettings &&
+          !_localOverlayOpen,
+    );
     _host.addListener(_onHostChanged);
     _host.addListener(_maybeShowSessionExpired);
-    _host.addListener(_queuePendingChangeAlert);
     _outcomeSub = _host.syncOutcomes.listen(_onSyncOutcome);
     _syncViewingListener();
     _watchSessionExpiry(_host);
     _bootstrap();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncAlertCoordinator();
+    if (AppNavigation.isVisibleOf(context) &&
+        (ModalRoute.isCurrentOf(context) ?? true)) {
+      _queuePendingChangeAlert();
+    }
+  }
+
+  void _syncAlertCoordinator() {
+    if (!mounted) return;
+    _changeAlertCoordinator.attach(
+      controller: _controller,
+      navigation: AppNavigationScope.readOf(context)?.navigation,
+      route: ModalRoute.of(context),
+    );
+  }
+
   void _onHostChanged() {
     _syncViewingListener();
+    _syncAlertCoordinator();
     _syncPageToViewingWeek();
     _queuePendingChangeAlert();
   }
@@ -91,7 +141,6 @@ class _TimetablePageState extends State<TimetablePage> {
     );
     if (!identical(_attachedViewing, _host)) {
       _attachedViewing?.removeListener(_syncPageToViewingWeek);
-      _attachedViewing?.removeListener(_queuePendingChangeAlert);
     }
     _viewingOutcomeSub?.cancel();
     _viewingOutcomeSub = null;
@@ -99,7 +148,6 @@ class _TimetablePageState extends State<TimetablePage> {
     current.viewingWeekListenable.addListener(_syncPageToViewingWeek);
     if (!identical(current, _host)) {
       current.addListener(_syncPageToViewingWeek);
-      current.addListener(_queuePendingChangeAlert);
       _viewingOutcomeSub = current.syncOutcomes.listen(_onSyncOutcome);
     }
   }
@@ -147,12 +195,16 @@ class _TimetablePageState extends State<TimetablePage> {
     if (!_host.isInitialized ||
         widget.focusEvent != null ||
         widget.focusTomorrow ||
+        widget.focusNextWeek ||
+        widget.openWidgetSettings ||
         _controller.viewingWeek !=
             _controller.currentWeek.clamp(1, _totalWeeks)) {
       // 定位其他周会通知仍在栈底的页面，在首个挂载build中不能同步发通知。
       // 有课时读完本地数据即可显示；门户绑定只决定空课表的登录引导。
       await _host.ensureLocalReady();
-      if (!_controller.hasCourses && _controller.scheduleEvents.isEmpty) {
+      if (!widget.openWidgetSettings &&
+          !_controller.hasCourses &&
+          _controller.scheduleEvents.isEmpty) {
         await _host.ensureStarted();
       }
     }
@@ -161,6 +213,8 @@ class _TimetablePageState extends State<TimetablePage> {
     _controller.followCurrentWeekIfChanged();
     if (widget.focusEvent != null) {
       _prepareEventFocus();
+    } else if (widget.focusNextWeek) {
+      _controller.setViewingWeek(_controller.currentWeek + 1);
     } else if (widget.focusTomorrow) {
       final now = DateTime.now();
       final tomorrow = DateTime(now.year, now.month, now.day + 1);
@@ -177,11 +231,15 @@ class _TimetablePageState extends State<TimetablePage> {
       try {
         if (widget.focusEvent != null) {
           await _showUnavailableEventFocus();
-        } else {
+        } else if (widget.openWidgetSettings) {
+          await _openWidgetSettingsFromEntry();
+        } else if (!widget.focusNextWeek) {
           await _openPendingCourse();
         }
       } finally {
-        _openingEntryDetail = false;
+        _entryOverlayDepth = _entryOverlayDepth > 0
+            ? _entryOverlayDepth - 1
+            : 0;
         _queuePendingChangeAlert();
       }
     });
@@ -190,71 +248,81 @@ class _TimetablePageState extends State<TimetablePage> {
   }
 
   void _queuePendingChangeAlert() {
-    if (!mounted ||
-        !_ready ||
-        _viewingWeekCleared ||
-        _syncAlertQueued ||
-        _syncAlertScheduled ||
-        _openingEntryDetail ||
-        _controller.loading ||
-        _controller.pendingChangeAlerts.isEmpty) {
-      return;
-    }
-    _syncAlertScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncAlertScheduled = false;
-      unawaited(_maybeShowPendingChangeAlert());
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
-  }
-
-  Future<void> _maybeShowPendingChangeAlert() async {
-    if (!mounted ||
-        !_ready ||
-        _viewingWeekCleared ||
-        _syncAlertQueued ||
-        _openingEntryDetail ||
-        _controller.loading ||
-        !(ModalRoute.of(context)?.isCurrent ?? true)) {
-      return;
-    }
-    final records = _controller.pendingChangeAlerts;
-    if (records.isEmpty) return;
-    _syncAlertQueued = true;
-    try {
-      await showTimetableChangeAlert(
-        context,
-        records: records,
-        controller: _controller,
-      );
-    } finally {
-      _syncAlertQueued = false;
-      _queuePendingChangeAlert();
-    }
+    _changeAlertCoordinator.schedule();
   }
 
   @override
   void didUpdateWidget(covariant TimetablePage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.focusEvent != oldWidget.focusEvent && _ready) {
-      _openingEntryDetail = true;
+      _entryOverlayDepth++;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        if (!mounted) return;
-        setState(_prepareEventFocus);
         try {
+          if (!mounted) return;
+          setState(_prepareEventFocus);
           await _showUnavailableEventFocus();
         } finally {
-          _openingEntryDetail = false;
+          _entryOverlayDepth = _entryOverlayDepth > 0
+              ? _entryOverlayDepth - 1
+              : 0;
           _queuePendingChangeAlert();
         }
       });
-    } else if (widget.focusTomorrow && _ready) {
+    }
+    if (_ready &&
+        (widget.widgetLaunchRequest != oldWidget.widgetLaunchRequest ||
+            widget.focusNextWeek != oldWidget.focusNextWeek ||
+            widget.openWidgetSettings != oldWidget.openWidgetSettings) &&
+        (widget.focusNextWeek || widget.openWidgetSettings)) {
+      final openingSettings = widget.openWidgetSettings;
+      final focusingNextWeek = widget.focusNextWeek;
+      if (openingSettings) _entryOverlayDepth++;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        try {
+          if (!mounted) return;
+          if (openingSettings) {
+            await _openWidgetSettingsFromEntry();
+          } else if (focusingNextWeek) {
+            _controller.setViewingWeek(_controller.currentWeek + 1);
+          }
+        } finally {
+          if (openingSettings) {
+            _entryOverlayDepth = _entryOverlayDepth > 0
+                ? _entryOverlayDepth - 1
+                : 0;
+          }
+          _queuePendingChangeAlert();
+        }
+      });
+    } else if (widget.focusTomorrow &&
+        _ready &&
+        (!oldWidget.focusTomorrow ||
+            widget.focusTomorrowToken != oldWidget.focusTomorrowToken)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         final now = DateTime.now();
         final tomorrow = DateTime(now.year, now.month, now.day + 1);
         _controller.setViewingWeek(_controller.actualWeek(tomorrow) ?? 1);
+        _queuePendingChangeAlert();
       });
+    }
+  }
+
+  Future<void> _openWidgetSettingsFromEntry() async {
+    if (_pushingWidgetSettings) return;
+    _pushingWidgetSettings = true;
+    try {
+      await Navigator.of(context).push(
+        AppPageRoute<void>(
+          builder: (_) => TimetableWidgetSettingsPage(
+            controller: _controller,
+            initialSize: WidgetPinSize.week,
+          ),
+        ),
+      );
+    } finally {
+      _pushingWidgetSettings = false;
+      _queuePendingChangeAlert();
     }
   }
 
@@ -449,6 +517,7 @@ class _TimetablePageState extends State<TimetablePage> {
 
   @override
   void dispose() {
+    _changeAlertCoordinator.dispose();
     _outcomeSub?.cancel();
     _viewingOutcomeSub?.cancel();
     _attachedViewing?.viewingWeekListenable.removeListener(
@@ -456,11 +525,9 @@ class _TimetablePageState extends State<TimetablePage> {
     );
     if (!identical(_attachedViewing, _host)) {
       _attachedViewing?.removeListener(_syncPageToViewingWeek);
-      _attachedViewing?.removeListener(_queuePendingChangeAlert);
     }
     _host.removeListener(_maybeShowSessionExpired);
     _host.removeListener(_onHostChanged);
-    _host.removeListener(_queuePendingChangeAlert);
     _pageController?.dispose();
     _clearViewingWeek();
     super.dispose();
@@ -495,17 +562,29 @@ class _TimetablePageState extends State<TimetablePage> {
   /// 顶部周数与课表切换弹窗是否处于打开状态（驱动小尖头旋转）。
   bool _weekStripOpen = false;
 
+  Future<void> _runWithLocalOverlay(Future<void> Function() action) async {
+    _localOverlayOpen = true;
+    try {
+      await action();
+    } finally {
+      _localOverlayOpen = false;
+      if (mounted) _queuePendingChangeAlert();
+    }
+  }
+
   Future<void> _openWeekAndSchedulePopup() async {
     if (_weekStripOpen) return;
     setState(() => _weekStripOpen = true);
     try {
-      await showTimetableSwitcherSheet(
-        context,
-        controller: _host,
-        totalWeeks: _totalWeeks,
-        currentWeek: _controller.currentWeek,
-        selectedWeek: _controller.viewingWeek,
-        onSelectWeek: (w) => unawaited(_selectWeek(w)),
+      await _runWithLocalOverlay(
+        () => showTimetableSwitcherSheet(
+          context,
+          controller: _host,
+          totalWeeks: _totalWeeks,
+          currentWeek: _controller.currentWeek,
+          selectedWeek: _controller.viewingWeek,
+          onSelectWeek: (w) => unawaited(_selectWeek(w)),
+        ),
       );
     } finally {
       if (mounted) setState(() => _weekStripOpen = false);
@@ -534,7 +613,7 @@ class _TimetablePageState extends State<TimetablePage> {
 
   void _openImport() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
+      AppPageRoute<void>(
         builder: (_) => TimetableImportPage(controller: _host),
       ),
     );
@@ -558,7 +637,10 @@ class _TimetablePageState extends State<TimetablePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (ModalRoute.isCurrentOf(context) ?? true) _queuePendingChangeAlert();
+    if (AppNavigation.isVisibleOf(context) &&
+        (ModalRoute.isCurrentOf(context) ?? true)) {
+      _queuePendingChangeAlert();
+    }
     final colors = TimetableTheme.colorsOf(context);
     final scaffold = Scaffold(
       // 输入只出现在弹层，键盘升降时保持背景课表的尺寸，避免重排整个周视图。
@@ -599,9 +681,11 @@ class _TimetablePageState extends State<TimetablePage> {
                         onSwitchSchedule: _openWeekAndSchedulePopup,
                         weekSelectorOpen: _weekStripOpen,
                         // §14.1：「+」三选一（课程 / 考试 / 其他）；「课程」仍是原手动课表单。
-                        onAdd: (buttonContext) => showAddEntrySheet(
-                          buttonContext,
-                          controller: active,
+                        onAdd: (buttonContext) => _runWithLocalOverlay(
+                          () => showAddEntrySheet(
+                            buttonContext,
+                            controller: active,
+                          ),
                         ),
                         onSync: _manualSync,
                         syncing:
@@ -1069,60 +1153,72 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TimetableTheme.colorsOf(context);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.calendar_view_week_outlined,
-              size: 56,
-              color: colors.hint.withValues(alpha: 0.7),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '还没有课程',
-              style: TimetableTheme.titleStyle(color: colors.titleText),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              isImported
-                  ? '该导入课表暂无课程安排'
-                  : (loggedIn ? '点右上角同步图标，从教务同步本学期课表' : '登录统一门户后自动同步课表'),
-              textAlign: TextAlign.center,
-              style: TimetableTheme.captionStyle(color: colors.hint),
-            ),
-            if (!loggedIn && !isImported) ...[
-              const SizedBox(height: 20),
-              FilledButton(
-                key: const Key('timetable_empty_login'),
-                onPressed: loading ? null : onLogin,
-                style: FilledButton.styleFrom(backgroundColor: colors.accent),
-                child: const Text('去登录'),
-              ),
-            ],
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                TextButton.icon(
-                  key: const Key('timetable_empty_import_wakeup'),
-                  onPressed: onImport,
-                  icon: const Icon(Icons.file_download_outlined, size: 18),
-                  label: const Text('从口令导入'),
-                ),
-                if (hasOtherSchedules)
-                  TextButton.icon(
-                    key: const Key('timetable_empty_switch'),
-                    onPressed: onSwitchSchedule,
-                    icon: const Icon(Icons.swap_horiz, size: 18),
-                    label: const Text('切换课表'),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.calendar_view_week_outlined,
+                    size: 56,
+                    color: colors.hint.withValues(alpha: 0.7),
                   ),
-              ],
+                  const SizedBox(height: 12),
+                  Text(
+                    '还没有课程',
+                    style: TimetableTheme.titleStyle(color: colors.titleText),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isImported
+                        ? '该导入课表暂无课程安排'
+                        : (loggedIn ? '点右上角同步图标，从教务同步本学期课表' : '登录统一门户后自动同步课表'),
+                    textAlign: TextAlign.center,
+                    style: TimetableTheme.captionStyle(color: colors.hint),
+                  ),
+                  if (!loggedIn && !isImported) ...[
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      key: const Key('timetable_empty_login'),
+                      onPressed: loading ? null : onLogin,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.accent,
+                      ),
+                      child: const Text('去登录'),
+                    ),
+                  ],
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        key: const Key('timetable_empty_import_wakeup'),
+                        onPressed: onImport,
+                        icon: const Icon(
+                          Icons.file_download_outlined,
+                          size: 18,
+                        ),
+                        label: const Text('从口令导入'),
+                      ),
+                      if (hasOtherSchedules)
+                        TextButton.icon(
+                          key: const Key('timetable_empty_switch'),
+                          onPressed: onSwitchSchedule,
+                          icon: const Icon(Icons.swap_horiz, size: 18),
+                          label: const Text('切换课表'),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );

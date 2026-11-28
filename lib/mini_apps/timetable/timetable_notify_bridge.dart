@@ -55,6 +55,9 @@ enum WidgetPinResult {
   manual,
 }
 
+/// 可添加的小组件尺寸：4×2 今日课表、2×2 当前/下一节、4×6 当周课表。
+enum WidgetPinSize { wide, square, week }
+
 /// 课表提醒 / 桌面小组件的原生通道（`dev.duohuo.nuist_sta_app/notify_widget`）。
 ///
 /// 所有方法在非 Android 或通道缺失时安静降级，不抛异常。
@@ -81,8 +84,11 @@ class TimetableNotifyBridge {
         !Platform.environment.containsKey('FLUTTER_TEST');
   }
 
-  Future<T?> _call<T>(String method, [Object? args]) async {
-    if (!_android) return null;
+  Future<({bool ok, T? value})> _callWithStatus<T>(
+    String method, [
+    Object? args,
+  ]) async {
+    if (!_android) return (ok: true, value: null);
     final watch = Stopwatch()..start();
     try {
       final result = await _channel.invokeMethod<T>(method, args);
@@ -110,7 +116,7 @@ class TimetableNotifyBridge {
           'duration_ms': watch.elapsedMilliseconds,
         },
       );
-      return result;
+      return (ok: true, value: result);
     } on MissingPluginException catch (error, stackTrace) {
       AppLog.reportOutcome('degraded', reason: 'platform_unavailable');
       _log.debug(
@@ -119,7 +125,7 @@ class TimetableNotifyBridge {
         error: error,
         stackTrace: stackTrace,
       );
-      return null;
+      return (ok: false, value: null);
     } on PlatformException catch (error, stackTrace) {
       AppLog.reportOutcome('degraded', reason: 'native_call_failed');
       _log.warning(
@@ -132,14 +138,18 @@ class TimetableNotifyBridge {
         error: error,
         stackTrace: stackTrace,
       );
-      return null;
+      return (ok: false, value: null);
     }
   }
 
+  Future<T?> _call<T>(String method, [Object? args]) async =>
+      (await _callWithStatus<T>(method, args)).value;
+
   /// 用新列表替换全部已排提醒（空列表 = 全部取消）。
-  Future<void> scheduleReminders(List<Map<String, Object?>> alarms) async {
-    await _call<Object?>('scheduleReminders', {'alarms': jsonEncode(alarms)});
-  }
+  Future<bool> scheduleReminders(List<Map<String, Object?>> alarms) async =>
+      (await _callWithStatus<Object?>('scheduleReminders', {
+        'alarms': jsonEncode(alarms),
+      })).ok;
 
   /// 取消全部提醒。
   Future<void> cancelReminders() async {
@@ -147,8 +157,10 @@ class TimetableNotifyBridge {
   }
 
   /// 写入小组件数据并立即刷新所有小组件实例。
-  Future<void> updateWidget(Map<String, Object?> payload) =>
-      _call<void>('updateWidget', {'payload': jsonEncode(payload)});
+  Future<bool> updateWidget(Map<String, Object?> payload) async =>
+      (await _callWithStatus<void>('updateWidget', {
+        'payload': jsonEncode(payload),
+      })).ok;
 
   /// 当前权限状态。
   Future<NotifyPermissionStatus> permissionStatus() async {
@@ -174,11 +186,12 @@ class TimetableNotifyBridge {
   Future<bool> openNotificationSettings() async =>
       await _call<bool>('openNotificationSettings') ?? false;
 
-  /// 请求把小组件固定到桌面（[square] 为 2×2，否则 4×2）。
+  /// 请求把指定尺寸的小组件固定到桌面。
   ///
-  /// 原生侧先检查厂商权限，再请求添加或返回手动指引类型。
-  Future<WidgetPinResult> pinWidget({required bool square}) async {
-    final result = await _call<String>('pinWidget', {'square': square});
+  /// 原生侧先检查厂商权限，再请求添加或返回手动指引类型；新增尺寸时
+  /// 同时保留旧的 square 参数兼容。
+  Future<WidgetPinResult> pinWidget({required WidgetPinSize size}) async {
+    final result = await _call<String>('pinWidget', {'size': size.name});
     return WidgetPinResult.values.firstWhere(
       (value) => value.name == result,
       orElse: () => WidgetPinResult.manual,

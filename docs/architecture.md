@@ -94,8 +94,8 @@ lib/
 
 宽屏底部入口为「首页+学习／我的」，我的页及其设置等详情始终使用完整窗口的系统安全
 区域，不按折痕或铰链限制为半屏；返回组合入口恢复两栏原状态。通知铃铛在宽屏组合界面的
-学习顶栏的右上角由壳提供，窄屏保留首页顶栏入口，两处共用公告和更新控制器。宽屏通知
-列表是根导航器上的全局弹层，打开时暂停自动提示，关闭后保留此前的活动栏。
+学习顶栏的右上角由壳提供，窄屏保留首页顶栏入口，两处共用公告和更新控制器。通知
+列表统一为根导航器上的全局弹层（窄屏下同时遮罩底部导航栏），打开时暂停自动提示，关闭后保留此前的活动栏。
 组合界面收窄时，根页显示首页；有详情时保留最近操作栏的详情并铺满，返回该栏根页后显示
 首页。窄屏根页保留首页、学习、我的三个入口，详情隐藏底栏。
 
@@ -105,7 +105,7 @@ lib/
 首页宫格和卡片指标随可用宽度与字号换行，不增加宽屏偏好设置。
 
 普通对话框与底部弹层使用所属栏的导航器，`showDialog` 显式指定
-`useRootNavigator: false`。阻断公告、更新详情及更新日志网页使用根导航器，
+`useRootNavigator: false`。公告弹窗（铃铛列表、自动弹出与阻断公告）、更新详情及更新日志网页统一使用根导航器，
 作用范围为整个窗口；全局提示条由壳的外层 `Scaffold` 展示一次。
 
 ### 返回行为与预测性返回
@@ -121,6 +121,10 @@ lib/
 它们保留 Material 转场，并限制只有返回目标栏接收预测性手势。系统返回依次交给全局
 弹层、最近操作栏、另一可见栏，再交给系统；各栏通过 `maybePop` 保留原有内容保护和内部
 返回顺序。手势开始后冻结目标，取消或完成动画结束后才处理新的面板导航。
+底部弹层统一使用 `lib/core/ui/app_bottom_sheet.dart` 的 `showAppModalBottomSheet`，
+在栈顶、允许直接退出且属于返回目标栏时提供跟手缩放反馈；Miuix 对话框拦截系统返回
+以播放完整 Miuix 退场动画，避免零时长硬切；窄屏详情退场动画结束后再恢复底栏，避免
+退场中途触发双页重排。
 
 壳根页的嵌套返回由 `BackButtonListener` 与协调器处理。根路由及壳的 `PopScope`
 按可见导航栈登记 Android 返回能力：有可见详情、内部保护或全局弹层时由 Flutter
@@ -302,7 +306,7 @@ UI 侧用 `ListenableBuilder(listenable: controller, builder: …)` 订阅。
 - 没有自定义字体
 
 主题在 `lib/core/theme.dart` 里，`appLightTheme()` / `appDarkTheme()` 两个函数，
-测试里可直接复用（见 `test/dark_theme_test.dart`、`test/score_page_test.dart`）。
+测试里可直接复用（见 `test/dark_theme_test.dart`、`test/study_pages_test.dart`）。
 
 少数颜色**刻意不跟随主题**，都在代码里写了中文注释说明原因：
 
@@ -485,8 +489,7 @@ JSON（包括嵌套字符串）、表单、URL 认证参数与 HTML 表格/控�
 1. **依赖方向只有部分工具强制**。CI 只检查了 `mini_apps/*` 一侧；`shell/*` 的约定和 `core/` 的准入仍靠 review 把关。
 2. **`_RefreshButton` 在七个卡片文件里各写了一份私有同名类**（`academic` / `student_info` /
    `score` / `innovation_credit` / `labor_score` / `timetable` / `electricity`），没有上收到 `core/`。
-3. **`lib/core/auth/` 测试覆盖不全**。目前只有 `NuistLogin`、`PortalCookieManager` 和学号掩码有单元测试，
-   `PortalSession`、`PasskeyTransfer` 等仍没有。
+3. **`lib/core/auth/` 测试覆盖持续补齐中**。目前 `PortalSession`、`NuistLogin`、`PortalCookieManager` 和学号掩码均已有单元测试（见 `test/portal_session_test.dart`、`test/portal_cookie_manager_test.dart`），`PasskeyTransfer` 等仍待补充。
 
 ## 测试
 
@@ -495,17 +498,12 @@ JSON（包括嵌套字符串）、表单、URL 认证参数与 HTML 表格/控�
 - 注册表 `id` 全局唯一（重复会导致 `/apps/:id` 路由冲突）
 - 有入口的 manifest 恰好提供 `entry` 或 `url` 之一；仅卡片模块不进入宫格或入口索引
 
-`test/study_registry_test.dart` 覆盖学习卡片注册、排序、增删及刷新分发，验证并发刷新会等待
+`test/study_models_test.dart` 覆盖学习卡片注册、排序、增删及刷新分发，验证并发刷新会等待
 全部回调，单项同步抛错不影响其余回调启动，以及仅卡片模块和未知 id 的路由兜底。
 
-`test/wide_layout_test.dart` 覆盖阈值、安全区、铰链、独立导航与滚动、宽窄切换的状态
-保留、局部与全局弹层、返回协调和明暗主题下的预测性返回，并通过真实课表宫格、添加
-入口和课程表单验证未保存保护、键盘避让与保护解除。
-`test/adaptive_card_layout_test.dart` 用合成数据检查 320 dp 与两倍字号下已加载卡片的
-完整指标和排版。
+`test/wide_layout_test.dart` 覆盖宽屏双栏适配阈值、安全区、铰链分区与局部屏幕圆角规则的纯逻辑验证（`AppPaneLayout.resolve` / `mediaForRect`）。
 
-另外它还用 `findsOneWidget` 断言了若干界面文案（首页宫格、学习页五张卡片标题、我的页
-「设置」「关于」等）。**副作用：新增小程序的 `label` 不能与现有重名**，否则这些断言会挂。
+另外 `test/widget_test.dart` 还用 `findsOneWidget` 断言了若干界面文案（首页宫格、学习页五张卡片标题、我的页「设置」「关于」等）。**副作用：新增小程序的 `label` 不能与现有重名**，否则这些断言会挂。
 
 CI 要求依赖方向与敏感字面量检查通过、启动图标与源图一致、`cargo test` 通过、`dart format` 无差异、
 `flutter analyze` 零警告、`flutter test`（含加载本机 VPN 动态库的 FFI 测试）全绿，没有覆盖率门槛。

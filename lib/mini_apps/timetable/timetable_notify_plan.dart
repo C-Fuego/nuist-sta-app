@@ -10,6 +10,9 @@ import 'package:flutter/foundation.dart' show immutable;
 /// 小组件中的安排类型；课程提醒只使用 [course]，考试与日程仅进入小组件。
 enum WidgetItemKind { course, exam, schedule }
 
+/// 小组件只对教务项目执行门户和缓存有效期校验。
+enum WidgetItemOrigin { local, jwxt }
+
 /// 某天的一节（或连堂）课，已套用调课 / 单日修改 / 删除。
 class NotifyClass {
   const NotifyClass({
@@ -24,6 +27,8 @@ class NotifyClass {
     this.barColor = 0xFF2196F3,
     this.barColorDark = 0xFF2196F3,
     this.kind = WidgetItemKind.course,
+    this.origin,
+    this.weekTag = '',
   });
 
   final String name;
@@ -45,6 +50,12 @@ class NotifyClass {
 
   /// 原生端据此显示“考试 / 日程”标识；旧 payload 缺失时按课程处理。
   final WidgetItemKind kind;
+
+  /// 旧调用方未标注来源时，原生端保守按教务项目处理。
+  final WidgetItemOrigin? origin;
+
+  /// 当周小组件显示的课程性质或普通课程的单双周；今日小组件不使用。
+  final String weekTag;
 
   /// `第3-4节 10:10-11:50`：节次 + 时段（小组件副行，永不省略）。
   String get periodTime => [
@@ -86,12 +97,15 @@ class ReminderAlarm {
   String get title =>
       names.length == 1 ? '${names.first} 即将上课' : '${names.length} 门课即将上课';
 
-  /// 通知正文：`08:00 开始 · 教室`。
+  /// 通知正文：`08:00 · 教室` / `08:00 上课`。
   String get body {
     final locs = locations.where((l) => l.isNotEmpty).toSet().join(' / ');
     final time = formatHm(classStart);
-    final head = names.length == 1 ? '$time 开始' : '$time 开始：${names.join('、')}';
-    return locs.isEmpty ? head : '$head · $locs';
+    if (names.length == 1) {
+      return locs.isEmpty ? '$time 上课' : '$time · $locs';
+    }
+    final list = names.join('、');
+    return locs.isEmpty ? '$time · $list' : '$time · $list · $locs';
   }
 
   Map<String, Object?> toJson() => {
@@ -165,6 +179,9 @@ enum WidgetDataState {
   /// 最近一次刷新失败；有历史课程时继续显示课程。
   loadFailed,
 }
+
+/// 小组件不可用时的原因；只有明确未绑定教务才提示登录。
+enum WidgetUpdateReason { noSchedule, jwxtUnbound, jwxtExpired }
 
 /// 小组件课程块样式：主块样式（大块，含倒计时或右侧开始时间）/ 紧凑行。
 enum WidgetItemStyle { main, compact }
@@ -245,6 +262,7 @@ const int kWidgetWindowDays = 8;
 /// [weekOf] 返回某天的教学周（未知为 null）。
 /// [tomorrowFirst] 由公共接口注入明天首节；未接线时为 null，不从数据窗口推算。
 /// [tomorrowFirstOn] 为窗口内每个日期注入其明天首节，供原生跨零点后离线刷新。
+/// [localTomorrowFirstOn] 提供教务离线过期后的明日首项，即使明天已超出窗口。
 Map<String, Object?> buildWidgetPayload({
   required DateTime now,
   required NotifyClassesOn classesOn,
@@ -252,10 +270,14 @@ Map<String, Object?> buildWidgetPayload({
   WidgetDataState state = WidgetDataState.ok,
   bool hasCache = true,
   DateTime? lastSyncedAt,
+  DateTime? jwxtExpiresAt,
+  bool? hasIndependentLocalData,
+  WidgetUpdateReason? reason,
   int days = kWidgetWindowDays,
   WidgetPrefs prefs = const WidgetPrefs(),
   NotifyClass? tomorrowFirst,
   NotifyClass? Function(DateTime date)? tomorrowFirstOn,
+  NotifyClass? Function(DateTime date)? localTomorrowFirstOn,
 }) {
   final today = DateTime(now.year, now.month, now.day);
   // 生成时刻今天各课的显示样式（main / compact；未显示为 null）。原生每次重绘
@@ -269,6 +291,7 @@ Map<String, Object?> buildWidgetPayload({
   Map<String, Object?> item(NotifyClass c, {WidgetItemStyle? style}) => {
     'name': c.name,
     'kind': c.kind.name,
+    if (c.origin case final origin?) 'origin': origin.name,
     'location': prefs.showLocation ? c.location : '',
     'teachers': prefs.showTeacher ? c.teachers : const <String>[],
     'teacherFirst': prefs.showTeacher && c.teachers.isNotEmpty
@@ -305,6 +328,9 @@ Map<String, Object?> buildWidgetPayload({
     return {
       if (tomorrowFirstOn != null)
         'tomorrowFirst': first == null ? null : item(first),
+      if (first?.origin == WidgetItemOrigin.jwxt)
+        if (localTomorrowFirstOn?.call(d) case final local?)
+          'localTomorrowFirst': item(local),
       'date': formatDate(d),
       'weekday': d.weekday,
       'week': weekOf?.call(d),
@@ -320,6 +346,10 @@ Map<String, Object?> buildWidgetPayload({
     'state': state.name,
     'hasCache': hasCache,
     'lastSyncedAt': lastSyncedAt?.millisecondsSinceEpoch,
+    if (jwxtExpiresAt != null)
+      'jwxtExpiresAt': jwxtExpiresAt.millisecondsSinceEpoch,
+    'hasIndependentLocalData': ?hasIndependentLocalData,
+    if (reason != null) 'reason': reason.name,
     'prefs': prefs.toJson(),
     'tomorrowFirst': tomorrowFirst == null ? null : item(tomorrowFirst),
     'days': [
